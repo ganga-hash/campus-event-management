@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { Box, Typography, TextField, Button, Alert, Divider } from '@mui/material';
+import { Box, Typography, TextField, Button, Alert } from '@mui/material';
 import { Link, useNavigate } from 'react-router-dom';
-import { Login as LoginIcon, PersonOutline, AdminPanelSettings } from '@mui/icons-material';
 import { login } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -20,11 +19,6 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const { loginUser } = useAuth();
   const navigate = useNavigate();
-
-  const fillDemo = (role) => {
-    if (role === 'admin') setForm({ email: 'admin@college.edu', password: 'admin123' });
-    else setForm({ email: 'aarav.sharma@college.edu', password: 'password123' });
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault(); setError(''); setLoading(true);
@@ -75,14 +69,6 @@ const LoginPage = () => {
         p: { xs: 3, sm: 5 }, background: '#faf9f6'
       }}>
         <Box sx={{ width: '100%', maxWidth: 380 }}>
-          <Box sx={{
-            width: 48, height: 48, borderRadius: '14px',
-            background: 'linear-gradient(135deg, #e8ebf5, #d4d8f0)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 3
-          }}>
-            <LoginIcon sx={{ color: '#2c3e7a', fontSize: 22 }} />
-          </Box>
-
           <Typography sx={{ fontFamily: '"Fraunces", serif', fontSize: '1.6rem', fontWeight: 600, color: '#1a1815', mb: '6px' }}>
             Welcome back
           </Typography>
@@ -119,25 +105,6 @@ const LoginPage = () => {
             }}>
               {loading ? 'Signing in…' : 'Sign In'}
             </Button>
-
-            <Divider sx={{ fontSize: '0.74rem', color: '#9a958f', my: 0.5 }}>quick demo login</Divider>
-
-            <Box sx={{ display: 'flex', gap: 1.5 }}>
-              <Button variant="outlined" onClick={() => fillDemo('student')} fullWidth
-                startIcon={<PersonOutline sx={{ fontSize: '16px !important' }} />}
-                sx={{
-                  fontSize: '0.78rem', borderColor: '#e8e5e0', color: '#5a5550', py: 1,
-                  borderRadius: '10px', fontWeight: 500, textTransform: 'none',
-                  '&:hover': { borderColor: '#2c3e7a', color: '#2c3e7a', background: '#f4f3f8' }
-                }}>Student</Button>
-              <Button variant="outlined" onClick={() => fillDemo('admin')} fullWidth
-                startIcon={<AdminPanelSettings sx={{ fontSize: '16px !important' }} />}
-                sx={{
-                  fontSize: '0.78rem', borderColor: '#e8e5e0', color: '#5a5550', py: 1,
-                  borderRadius: '10px', fontWeight: 500, textTransform: 'none',
-                  '&:hover': { borderColor: '#2c3e7a', color: '#2c3e7a', background: '#f4f3f8' }
-                }}>Admin</Button>
-            </Box>
           </Box>
 
           <Typography sx={{ fontSize: '0.84rem', color: '#9a958f', textAlign: 'center', mt: 3.5 }}>

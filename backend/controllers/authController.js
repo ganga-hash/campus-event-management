@@ -4,7 +4,10 @@ const pool = require('../config/db');
 require('dotenv').config();
 
 const register = async (req, res) => {
-  const { name, email, password, department, year, phone } = req.body;
+  const { name, email, password, department, year, phone, role } = req.body;
+
+  const validRoles = ['student', 'admin'];
+  const userRole = validRoles.includes(role) ? role : 'student';
 
   if (!name || !email || !password || !year) {
     return res.status(400).json({ message: 'Name, email, password, and year are required' });
@@ -22,12 +25,12 @@ const register = async (req, res) => {
 
     const password_hash = await bcrypt.hash(password, 10);
     const [result] = await pool.query(
-      'INSERT INTO Student (name, email, password_hash, department, year, phone) VALUES (?, ?, ?, ?, ?, ?)',
-      [name, email, password_hash, department, year, phone]
+      'INSERT INTO Student (name, email, password_hash, department, year, phone, role) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [name, email, password_hash, department, year, phone, userRole]
     );
 
     const token = jwt.sign(
-      { id: result.insertId, email, role: 'student', name },
+      { id: result.insertId, email, role: userRole, name },
       process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
@@ -35,7 +38,7 @@ const register = async (req, res) => {
     res.status(201).json({
       message: 'Registration successful',
       token,
-      user: { id: result.insertId, name, email, role: 'student', department, year }
+      user: { id: result.insertId, name, email, role: userRole, department, year }
     });
   } catch (err) {
     console.error(err);

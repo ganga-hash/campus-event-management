@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Box, Typography, Grid, CircularProgress, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Table, TableBody, TableCell, TableHead, TableRow, Paper, IconButton, Tooltip, Alert, useMediaQuery } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { Delete, Warning } from '@mui/icons-material';
-import { BarChart, Bar, XAxis, YAxis, Tooltip as ReTooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { getDashboardStats, getRegistrationsPerEvent, getCategoryBreakdown, getAllRegistrations, getAllAssignments, createEvent, deleteEvent, getEvents, adminDeleteRegistration, adminDeleteAssignment } from '../services/api';
+import { BarChart, Bar, XAxis, YAxis, Tooltip as ReTooltip, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid, Legend, LabelList } from 'recharts';
+import { getDashboardStats, getRegistrationsPerEvent, getCategoryBreakdown, getVolunteerDistribution, getAllRegistrations, getAllAssignments, createEvent, deleteEvent, getEvents, adminDeleteRegistration, adminDeleteAssignment } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 const CAT_COLORS = { Music: '#be185d', Dance: '#7c3aed', Tech: '#1d4ed8', Art: '#b45309', Sports: '#15803d', Drama: '#b91c1c', Literary: '#0e7490', Photography: '#6b21a8' };
@@ -192,16 +192,18 @@ const AdminDashboard = () => {
   const [regs, setRegs] = useState([]);
   const [vols, setVols] = useState([]);
   const [events, setEventsData] = useState([]);
+  const [volChart, setVolChart] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newEvOpen, setNewEvOpen] = useState(false);
   const [newEv, setNewEv] = useState({ name: '', category_id: 1, date: '', time: '10:00', venue: '', max_participants: 50, prize_pool: '', description: '' });
   const [alert, setAlert] = useState(null);
   const [deleteDialog, setDeleteDialog] = useState({ open: false, type: '', id: null, name: '' });
+  const isMobile = useMediaQuery('(max-width:899px)');
 
   useEffect(() => {
-    Promise.all([getDashboardStats(), getRegistrationsPerEvent(), getCategoryBreakdown(), getAllRegistrations(), getAllAssignments(), getEvents()])
-      .then(([s, r, c, regsData, volsData, eventsData]) => {
-        setStats(s.data); setRegChart(r.data); setCatChart(c.data); setRegs(regsData.data); setVols(volsData.data); setEventsData(eventsData.data);
+    Promise.all([getDashboardStats(), getRegistrationsPerEvent(), getCategoryBreakdown(), getVolunteerDistribution(), getAllRegistrations(), getAllAssignments(), getEvents()])
+      .then(([s, r, c, v, regsData, volsData, eventsData]) => {
+        setStats(s.data); setRegChart(r.data); setCatChart(c.data); setVolChart(v.data); setRegs(regsData.data); setVols(volsData.data); setEventsData(eventsData.data);
       }).catch(console.error).finally(() => setLoading(false));
   }, []);
 
@@ -246,8 +248,6 @@ const AdminDashboard = () => {
     </Box>
   );
 
-  const isMobile = useMediaQuery('(max-width:899px)');
-
   return (
     <Box sx={{ display: 'flex', minHeight: 'calc(100vh - 64px)', background: '#faf9f6' }}>
       <Sidebar activePanel={panel} setPanel={setPanel} />
@@ -279,37 +279,130 @@ const AdminDashboard = () => {
               <Grid item xs={6} sm={3}><StatCard icon="🎫" value={stats.total_registrations || 0} label="Registrations" color="#15803d" /></Grid>
               <Grid item xs={6} sm={3}><StatCard icon="🙋" value={stats.total_volunteers || 0} label="Volunteers" color="#b45309" /></Grid>
             </Grid>
+            {/* Top Event Highlight */}
+            {regChart.length > 0 && (
+              <Box sx={{
+                background: 'linear-gradient(135deg, #2c3e7a, #3d52a8)', borderRadius: '14px',
+                p: { xs: 2.5, md: 3 }, mb: 3, color: '#fff', display: 'flex', alignItems: 'center', gap: 2,
+                boxShadow: '0 4px 16px rgba(44,62,122,.2)'
+              }}>
+                <Box sx={{ fontSize: '2rem' }}>🏆</Box>
+                <Box>
+                  <Typography sx={{ fontSize: '0.74rem', fontWeight: 500, color: 'rgba(255,255,255,.6)', textTransform: 'uppercase', letterSpacing: '.08em' }}>Most Popular Event</Typography>
+                  <Typography sx={{ fontFamily: '"Fraunces", serif', fontSize: '1.15rem', fontWeight: 600, mt: '2px' }}>
+                    {regChart[0].event_name}
+                  </Typography>
+                  <Typography sx={{ fontSize: '0.82rem', color: 'rgba(255,255,255,.7)', mt: '2px' }}>
+                    {regChart[0].total_registrations} registrations
+                  </Typography>
+                </Box>
+              </Box>
+            )}
+
             <Grid container spacing={3}>
+              {/* Registrations per Event - Bar Chart */}
               <Grid item xs={12} md={8}>
                 <Box sx={{
                   background: '#fff', borderRadius: '14px', border: '1px solid #e8e5e0',
                   p: { xs: 2.5, md: 3 }, boxShadow: '0 1px 3px rgba(0,0,0,.03)'
                 }}>
-                  <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: '#1a1815', mb: 3 }}>Registrations per Event</Typography>
-                  <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={regChart.slice(0, 8)} margin={{ top: 0, right: 0, left: -20, bottom: 45 }}>
-                      <XAxis dataKey="event_name" tick={{ fontSize: 10, fill: '#9a958f' }} angle={-30} textAnchor="end" interval={0} />
-                      <YAxis tick={{ fontSize: 10, fill: '#9a958f' }} />
-                      <ReTooltip contentStyle={{ borderRadius: 10, border: '1px solid #e8e5e0', fontSize: '0.8rem', boxShadow: '0 4px 12px rgba(0,0,0,.08)' }} />
-                      <Bar dataKey="participant_count" fill="#2c3e7a" radius={[6, 6, 0, 0]} />
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                    <Box>
+                      <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: '#1a1815' }}>Registrations per Event</Typography>
+                      <Typography sx={{ fontSize: '0.74rem', color: '#9a958f', mt: '2px' }}>Number of confirmed participant sign-ups for each event</Typography>
+                    </Box>
+                    <Box sx={{ px: '10px', py: '4px', borderRadius: '8px', background: '#f0f0fb', fontSize: '0.72rem', fontWeight: 600, color: '#2c3e7a' }}>
+                      Top {Math.min(regChart.length, 8)} events
+                    </Box>
+                  </Box>
+                  <ResponsiveContainer width="100%" height={280}>
+                    <BarChart data={regChart.slice(0, 8)} margin={{ top: 10, right: 10, left: 0, bottom: 55 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e8e5e0" vertical={false} />
+                      <XAxis dataKey="event_name" tick={{ fontSize: 9, fill: '#9a958f' }} angle={-35} textAnchor="end" interval={0} />
+                      <YAxis tick={{ fontSize: 10, fill: '#9a958f' }} label={{ value: 'Registrations', angle: -90, position: 'insideLeft', offset: 10, style: { fontSize: 11, fill: '#9a958f' } }} allowDecimals={false} />
+                      <ReTooltip contentStyle={{ borderRadius: 10, border: '1px solid #e8e5e0', fontSize: '0.8rem', boxShadow: '0 4px 12px rgba(0,0,0,.08)' }} formatter={(value) => [`${value} registrations`, 'Count']} />
+                      <Bar dataKey="total_registrations" fill="#2c3e7a" radius={[6, 6, 0, 0]} name="Registrations">
+                        <LabelList dataKey="total_registrations" position="top" style={{ fontSize: 10, fill: '#5a5550', fontWeight: 600 }} />
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </Box>
               </Grid>
+
+              {/* Events by Category - Pie Chart */}
               <Grid item xs={12} md={4}>
                 <Box sx={{
                   background: '#fff', borderRadius: '14px', border: '1px solid #e8e5e0',
                   p: { xs: 2.5, md: 3 }, height: '100%', boxShadow: '0 1px 3px rgba(0,0,0,.03)'
                 }}>
-                  <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: '#1a1815', mb: 3 }}>Events by Category</Typography>
+                  <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: '#1a1815', mb: '2px' }}>Events by Category</Typography>
+                  <Typography sx={{ fontSize: '0.74rem', color: '#9a958f', mb: 2 }}>Distribution of events across categories</Typography>
                   <ResponsiveContainer width="100%" height={200}>
                     <PieChart>
-                      <Pie data={catChart} dataKey="event_count" nameKey="category_name" cx="50%" cy="50%" outerRadius={65} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false} fontSize={10}>
+                      <Pie data={catChart} dataKey="event_count" nameKey="category" cx="50%" cy="50%" innerRadius={35} outerRadius={65} paddingAngle={2}>
                         {catChart.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                       </Pie>
-                      <ReTooltip contentStyle={{ borderRadius: 10, border: '1px solid #e8e5e0', fontSize: '0.8rem' }} />
+                      <ReTooltip contentStyle={{ borderRadius: 10, border: '1px solid #e8e5e0', fontSize: '0.8rem' }} formatter={(value, name) => [`${value} events`, name]} />
                     </PieChart>
                   </ResponsiveContainer>
+                  {/* Legend below pie */}
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '6px 12px', mt: 1 }}>
+                    {catChart.map((c, i) => (
+                      <Box key={c.category} sx={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <Box sx={{ width: 8, height: 8, borderRadius: '50%', background: COLORS[i % COLORS.length], flexShrink: 0 }} />
+                        <Typography sx={{ fontSize: '0.68rem', color: '#5a5550' }}>{c.category} ({c.event_count})</Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              </Grid>
+
+              {/* Volunteer Distribution - Bar Chart */}
+              <Grid item xs={12} md={8}>
+                <Box sx={{
+                  background: '#fff', borderRadius: '14px', border: '1px solid #e8e5e0',
+                  p: { xs: 2.5, md: 3 }, boxShadow: '0 1px 3px rgba(0,0,0,.03)'
+                }}>
+                  <Box sx={{ mb: 3 }}>
+                    <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: '#1a1815' }}>Volunteer Distribution</Typography>
+                    <Typography sx={{ fontSize: '0.74rem', color: '#9a958f', mt: '2px' }}>Number of volunteers assigned to each event</Typography>
+                  </Box>
+                  <ResponsiveContainer width="100%" height={250}>
+                    <BarChart data={volChart.slice(0, 8)} margin={{ top: 10, right: 10, left: 0, bottom: 55 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e8e5e0" vertical={false} />
+                      <XAxis dataKey="event_name" tick={{ fontSize: 9, fill: '#9a958f' }} angle={-35} textAnchor="end" interval={0} />
+                      <YAxis tick={{ fontSize: 10, fill: '#9a958f' }} label={{ value: 'Volunteers', angle: -90, position: 'insideLeft', offset: 10, style: { fontSize: 11, fill: '#9a958f' } }} allowDecimals={false} />
+                      <ReTooltip contentStyle={{ borderRadius: 10, border: '1px solid #e8e5e0', fontSize: '0.8rem', boxShadow: '0 4px 12px rgba(0,0,0,.08)' }} formatter={(value) => [`${value} volunteers`, 'Count']} />
+                      <Bar dataKey="volunteer_count" fill="#b45309" radius={[6, 6, 0, 0]} name="Volunteers">
+                        <LabelList dataKey="volunteer_count" position="top" style={{ fontSize: 10, fill: '#5a5550', fontWeight: 600 }} />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </Box>
+              </Grid>
+
+              {/* Category Participants Summary Table */}
+              <Grid item xs={12} md={4}>
+                <Box sx={{
+                  background: '#fff', borderRadius: '14px', border: '1px solid #e8e5e0',
+                  p: { xs: 2.5, md: 3 }, height: '100%', boxShadow: '0 1px 3px rgba(0,0,0,.03)'
+                }}>
+                  <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: '#1a1815', mb: '2px' }}>Category Summary</Typography>
+                  <Typography sx={{ fontSize: '0.74rem', color: '#9a958f', mb: 2 }}>Events and participants per category</Typography>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {catChart.map((c, i) => (
+                      <Box key={c.category} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: '10px 12px', borderRadius: '10px', background: '#faf9f7', border: '1px solid #f0eef2' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <Box sx={{ width: 10, height: 10, borderRadius: '3px', background: COLORS[i % COLORS.length], flexShrink: 0 }} />
+                          <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: '#1a1815' }}>{c.category}</Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                          <Typography sx={{ fontSize: '0.72rem', color: '#9a958f' }}>{c.event_count} events</Typography>
+                          <Typography sx={{ fontSize: '0.72rem', fontWeight: 600, color: '#2c3e7a', background: '#e8ebf5', px: '8px', py: '2px', borderRadius: '6px' }}>{c.total_participants} participants</Typography>
+                        </Box>
+                      </Box>
+                    ))}
+                  </Box>
                 </Box>
               </Grid>
             </Grid>

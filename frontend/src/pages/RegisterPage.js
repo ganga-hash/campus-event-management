@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Box, Typography, TextField, Button, Alert } from '@mui/material';
+import { Box, Typography, TextField, Button, Alert, ToggleButtonGroup, ToggleButton } from '@mui/material';
 import { Link, useNavigate } from 'react-router-dom';
-import { School } from '@mui/icons-material';
+import { School, AdminPanelSettings, Person } from '@mui/icons-material';
 import { register } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -15,7 +15,7 @@ const inputSx = {
 };
 
 const RegisterPage = () => {
-  const [form, setForm] = useState({ name: '', email: '', password: '', department: 'Computer Science', year: 2 });
+  const [form, setForm] = useState({ name: '', email: '', password: '', department: 'Computer Science', year: 2, role: 'student' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { loginUser } = useAuth();
@@ -27,7 +27,7 @@ const RegisterPage = () => {
     try {
       const res = await register(form);
       loginUser(res.data.token, res.data.user);
-      navigate('/dashboard');
+      navigate(res.data.user.role === 'admin' ? '/admin' : '/dashboard');
     } catch (err) {
       console.error('Registration error:', err);
       if (err.response) {
@@ -93,6 +93,20 @@ const RegisterPage = () => {
           )}
 
           <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+            <Box>
+              <Typography sx={{ fontSize: '0.76rem', fontWeight: 600, color: '#5a5550', mb: '8px' }}>Register as</Typography>
+              <ToggleButtonGroup
+                value={form.role}
+                exclusive
+                onChange={(e, val) => val && setForm({ ...form, role: val })}
+                fullWidth
+                size="small"
+                sx={{ borderRadius: '10px', '& .MuiToggleButton-root': { textTransform: 'none', fontWeight: 600, fontSize: '0.84rem', borderRadius: '10px', py: 1, '&.Mui-selected': { background: form.role === 'admin' ? 'linear-gradient(135deg, #2c3e7a, #3b4f9a)' : 'linear-gradient(135deg, #15803d, #22804e)', color: '#fff', '&:hover': { background: form.role === 'admin' ? 'linear-gradient(135deg, #243268, #324388)' : 'linear-gradient(135deg, #116932, #1a6b42)' } } } }}
+              >
+                <ToggleButton value="student"><Person sx={{ mr: 1, fontSize: 18 }} />Student</ToggleButton>
+                <ToggleButton value="admin"><AdminPanelSettings sx={{ mr: 1, fontSize: 18 }} />Admin</ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
             <Box>
               <Typography sx={{ fontSize: '0.76rem', fontWeight: 600, color: '#5a5550', mb: '8px' }}>Full Name</Typography>
               <TextField size="small" fullWidth value={form.name} onChange={f('name')}
