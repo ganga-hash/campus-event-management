@@ -105,6 +105,12 @@ festzone/
 
 ---
 
+## Database Reference
+
+- Detailed DB documentation: [database/README.md](database/README.md)
+
+---
+
 ## API Endpoints
 
 | Method | Endpoint | Auth | Description |
