@@ -5,6 +5,7 @@ import { Delete, Warning } from '@mui/icons-material';
 import { BarChart, Bar, XAxis, YAxis, Tooltip as ReTooltip, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid, Legend, LabelList } from 'recharts';
 import { getDashboardStats, getRegistrationsPerEvent, getCategoryBreakdown, getVolunteerDistribution, getAllRegistrations, getAllAssignments, createEvent, deleteEvent, getEvents, adminDeleteRegistration, adminDeleteAssignment } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { formatRupees } from '../utils/currency';
 
 const CAT_COLORS = { Music: '#be185d', Dance: '#7c3aed', Tech: '#1d4ed8', Art: '#b45309', Sports: '#15803d', Drama: '#b91c1c', Literary: '#0e7490', Photography: '#6b21a8' };
 const COLORS = Object.values(CAT_COLORS);
@@ -211,7 +212,11 @@ const AdminDashboard = () => {
 
   const handleCreateEvent = async () => {
     try {
-      await createEvent(newEv); setNewEvOpen(false);
+      const payload = {
+        ...newEv,
+        prize_pool: newEv.prize_pool ? formatRupees(newEv.prize_pool) : ''
+      };
+      await createEvent(payload); setNewEvOpen(false);
       showAlert('success', 'Event created successfully!');
     } catch (err) { showAlert('error', err.response?.data?.message || 'Failed to create event'); }
   };
@@ -436,7 +441,7 @@ const AdminDashboard = () => {
                   new Date(e.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
                   e.venue || '—',
                   `${e.participant_count || e.current_participants || 0} / ${e.max_participants}`,
-                  e.prize_pool || '—'
+                  e.prize_pool ? formatRupees(e.prize_pool) : '—'
                 ]
               }))}
             />

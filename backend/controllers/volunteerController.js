@@ -15,6 +15,21 @@ const applyVolunteerEvent = async (req, res) => {
   const { event_id, role, availability, skills } = req.body;
   const student_id = req.user.id;
   try {
+    if (!event_id) {
+      return res.status(400).json({ message: 'event_id is required' });
+    }
+
+    const [participantRows] = await pool.query(
+      `SELECT registration_id
+       FROM Registration
+       WHERE student_id = ? AND event_id = ? AND status <> 'cancelled'
+       LIMIT 1`,
+      [student_id, event_id]
+    );
+    if (participantRows.length > 0) {
+      return res.status(409).json({ message: 'You are already registered as a participant for this event. Choose only one role.' });
+    }
+
     let [volRows] = await pool.query('SELECT volunteer_id FROM Volunteer WHERE student_id = ?', [student_id]);
     let volunteer_id;
     if (volRows.length === 0) {

@@ -5,8 +5,25 @@ const registerForEvent = async (req, res) => {
   const student_id = req.user.id;
 
   try {
+    if (!event_id) {
+      return res.status(400).json({ message: 'event_id is required' });
+    }
+
     const [eventRows] = await pool.query('SELECT * FROM Event WHERE event_id = ?', [event_id]);
     if (eventRows.length === 0) return res.status(404).json({ message: 'Event not found' });
+
+    // A student can join an event only in one role: participant OR volunteer.
+    const [volunteerAssignment] = await pool.query(
+      `SELECT a.assignment_id
+       FROM Assignment a
+       JOIN Volunteer v ON a.volunteer_id = v.volunteer_id
+       WHERE v.student_id = ? AND a.event_id = ?
+       LIMIT 1`,
+      [student_id, event_id]
+    );
+    if (volunteerAssignment.length > 0) {
+      return res.status(409).json({ message: 'You are already volunteering for this event. Choose only one role.' });
+    }
 
     const event = eventRows[0];
     if (event.current_participants >= event.max_participants) {
@@ -36,7 +53,7 @@ const registerForEvent = async (req, res) => {
 const getMyRegistrations = async (req, res) => {
   try {
     const [rows] = await pool.query(`
-      SELECT r.registration_id, r.registered_at, r.status,
+      SELECT r.registration_id, r.registered_at, r.status, r.event_id,
         e.name AS event_name, e.date, e.time, e.venue, e.prize_pool, c.name AS category
       FROM Registration r
       JOIN Event e ON r.event_id = e.event_id

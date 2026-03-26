@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Box, Typography, Button, Chip, CircularProgress, Alert, LinearProgress, Divider, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Container, useMediaQuery } from '@mui/material';
 import { CalendarMonth, LocationOn, EmojiEvents, ArrowBack, People, AccessTime, Category } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getEventById, registerForEvent, applyVolunteer } from '../services/api';
+import { getEventById, registerForEvent, applyVolunteer, getMyRegistrations, getMyAssignments } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { formatRupees } from '../utils/currency';
 
 const CAT_COLORS = { Music: '#be185d', Dance: '#7c3aed', Tech: '#1d4ed8', Art: '#b45309', Sports: '#15803d', Drama: '#b91c1c', Literary: '#0e7490', Photography: '#6b21a8', General: '#2c3e7a' };
 const CAT_ICONS = { Music: '🎵', Dance: '💃', Tech: '💻', Art: '🎨', Sports: '⚽', Drama: '🎭', Literary: '📖', Photography: '📷', General: '🎪' };
@@ -50,8 +51,30 @@ const EventDetail = () => {
   const isMobile = useMediaQuery('(max-width:600px)');
 
   useEffect(() => {
-    getEventById(id).then(r => setEvent(r.data)).catch(console.error).finally(() => setLoading(false));
-  }, [id]);
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const eventRes = await getEventById(id);
+        setEvent(eventRes.data);
+
+        if (user) {
+          const [regRes, volRes] = await Promise.all([getMyRegistrations(), getMyAssignments()]);
+          const eventIdNum = Number(id);
+          setIsRegistered(regRes.data.some(r => Number(r.event_id) === eventIdNum && r.status !== 'cancelled'));
+          setIsVolunteer(volRes.data.some(v => Number(v.event_id) === eventIdNum));
+        } else {
+          setIsRegistered(false);
+          setIsVolunteer(false);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [id, user]);
 
   const showAlert = (type, msg) => { setAlert({ type, msg }); setTimeout(() => setAlert(null), 4000); };
 
@@ -147,7 +170,7 @@ const EventDetail = () => {
             }} />
             {event.prize_pool && event.prize_pool !== 'N/A' && (
               <Chip icon={<EmojiEvents sx={{ fontSize: '14px !important', color: `${c} !important` }} />}
-                label={event.prize_pool} size="small" sx={{
+                label={formatRupees(event.prize_pool)} size="small" sx={{
                   height: 24, borderRadius: '8px', fontSize: '0.7rem', fontWeight: 700,
                   background: '#fef3c720', color: c, border: `1px solid ${c}20`
                 }} />
@@ -186,7 +209,7 @@ const EventDetail = () => {
           <InfoCard icon={LocationOn} label="Venue" color={c}
             value={event.venue || 'TBD'} />
           <InfoCard icon={EmojiEvents} label="Prize Pool" color="#b45309"
-            value={event.prize_pool || 'Certificate'} />
+            value={event.prize_pool ? formatRupees(event.prize_pool) : 'Certificate'} />
           <InfoCard icon={Category} label="Category" color={c}
             value={event.category_name || 'General'} />
           <InfoCard icon={People} label="Capacity" color={c}
@@ -304,7 +327,7 @@ const EventDetail = () => {
                 How do you want to join?
               </Typography>
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
-                {!full && !isRegistered && (
+                {!full && !isRegistered && !isVolunteer && (
                   <Box onClick={handleParticipate} sx={{
                     p: { xs: 2.5, sm: 3 }, borderRadius: '14px', border: '2px solid #e8e5e0',
                     cursor: 'pointer', transition: 'all .25s', background: '#faf9f7',
@@ -322,7 +345,7 @@ const EventDetail = () => {
                     </Typography>
                   </Box>
                 )}
-                {!isVolunteer && (
+                {!isVolunteer && !isRegistered && (
                   <Box onClick={() => setRoleModal(true)} sx={{
                     p: { xs: 2.5, sm: 3 }, borderRadius: '14px', border: '2px solid #e8e5e0',
                     cursor: 'pointer', transition: 'all .25s', background: '#faf9f7',
@@ -341,6 +364,11 @@ const EventDetail = () => {
                   </Box>
                 )}
               </Box>
+              {(isRegistered || isVolunteer) && (
+                <Typography sx={{ mt: 2, fontSize: '0.78rem', color: '#9a958f' }}>
+                  You can only join this event in one role.
+                </Typography>
+              )}
             </Box>
           )}
         </Box>

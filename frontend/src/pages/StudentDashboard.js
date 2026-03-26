@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Delete, Warning } from '@mui/icons-material';
 import { getMyRegistrations, getMyAssignments, deleteRegistration, deleteMyAssignment } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { formatRupees } from '../utils/currency';
 
 const CAT_COLORS = { Music: '#be185d', Dance: '#7c3aed', Tech: '#1d4ed8', Art: '#b45309', Sports: '#15803d', Drama: '#b91c1c', Literary: '#0e7490', Photography: '#6b21a8', General: '#2c3e7a' };
 
@@ -288,7 +289,7 @@ const StudentDashboard = () => {
               <ItemRow key={i} name={r.event_name}
                 meta={[r.category || '', r.date ? new Date(r.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '', r.time ? String(r.time).slice(0, 5) : '', `📍 ${r.venue || ''}`]}
                 badge={r.status || 'confirmed'} badgeSx={{ background: '#dcfce7', color: '#15803d' }}
-                sub={r.prize_pool && r.prize_pool !== 'N/A' ? `🏆 ${r.prize_pool}` : undefined}
+                sub={r.prize_pool && r.prize_pool !== 'N/A' ? `🏆 ${formatRupees(r.prize_pool)}` : undefined}
                 onDelete={() => openDeleteDialog('registration', r.registration_id, r.event_name)} />
             )) : <EmptyState icon="📅" title="No registrations yet" sub="Browse events and register to see them here" btnLabel="Browse Events →" onBtn={() => navigate('/events')} />}
           </Box>

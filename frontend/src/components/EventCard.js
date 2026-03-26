@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, Typography, Chip, LinearProgress } from '@mui/material';
 import { CalendarMonth, LocationOn, EmojiEvents, People } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { formatRupees } from '../utils/currency';
 
 const CAT_COLORS = {
   Music: '#be185d', Dance: '#7c3aed', Tech: '#1d4ed8', Art: '#b45309',
@@ -105,7 +106,7 @@ const EventCard = ({ event, onRegister, onVolunteer, isRegistered, isVolunteer, 
           {event.prize_pool && event.prize_pool !== 'N/A' && (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <EmojiEvents sx={{ fontSize: 15, color: c, flexShrink: 0 }} />
-              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: c }}>{event.prize_pool}</Typography>
+              <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: c }}>{formatRupees(event.prize_pool)}</Typography>
             </Box>
           )}
         </Box>
