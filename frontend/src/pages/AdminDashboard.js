@@ -1,579 +1,310 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Grid, CircularProgress, Button, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Table, TableBody, TableCell, TableHead, TableRow, Paper, IconButton, Tooltip, Alert, useMediaQuery } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
-import { Delete, Warning } from '@mui/icons-material';
-import { BarChart, Bar, XAxis, YAxis, Tooltip as ReTooltip, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid, Legend, LabelList } from 'recharts';
-import { getDashboardStats, getRegistrationsPerEvent, getCategoryBreakdown, getVolunteerDistribution, getAllRegistrations, getAllAssignments, createEvent, deleteEvent, getEvents, adminDeleteRegistration, adminDeleteAssignment } from '../services/api';
+import { motion, AnimatePresence } from 'framer-motion';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { LayoutDashboard, CalendarDays, Users, Pencil, Trash2, Plus } from 'lucide-react';
+import { getEvents, createEvent, updateEvent, deleteEvent } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { formatRupees } from '../utils/currency';
+import SkeletonRow from '../components/ui/SkeletonRow';
+import Toast from '../components/ui/Toast';
+import Modal from '../components/ui/Modal';
+import Button from '../components/ui/Button';
 
-const CAT_COLORS = { Music: '#be185d', Dance: '#7c3aed', Tech: '#1d4ed8', Art: '#b45309', Sports: '#15803d', Drama: '#b91c1c', Literary: '#0e7490', Photography: '#6b21a8' };
-const COLORS = Object.values(CAT_COLORS);
-
-const inputSx = {
-  '& .MuiOutlinedInput-root': {
-    borderRadius: '10px', background: '#faf9f7', fontSize: '0.88rem',
-    '& fieldset': { borderColor: '#e8e5e0' },
-    '&:hover fieldset': { borderColor: '#c0bdb7' },
-    '&.Mui-focused fieldset': { borderColor: '#2c3e7a', borderWidth: '1.5px' },
-  }
+const formatDateForInput = (dateString) => {
+  if (!dateString) return '';
+  const d = new Date(dateString);
+  return d.toISOString().split('T')[0];
 };
 
-const Sidebar = ({ activePanel, setPanel }) => {
-  const { logoutUser } = useAuth();
-  const navigate = useNavigate();
-  const navItems = [
-    { id: 'overview', icon: '◻', label: 'Overview' },
-    { id: 'events', icon: '📅', label: 'Events' },
-    { id: 'registrations', icon: '🎫', label: 'Registrations' },
-    { id: 'volunteers', icon: '🙋', label: 'Volunteers' },
-  ];
-
-  return (
-    <Box sx={{
-      background: '#fff', borderRight: '1px solid #e8e5e0', width: 240,
-      minHeight: 'calc(100vh - 64px)', position: 'sticky', top: 64, flexShrink: 0,
-      display: { xs: 'none', md: 'flex' }, flexDirection: 'column',
-      boxShadow: '1px 0 8px rgba(0,0,0,.03)'
-    }}>
-      <Box sx={{ p: '24px 20px', borderBottom: '1px solid #e8e5e0' }}>
-        <Box sx={{
-          width: 44, height: 44, borderRadius: '12px',
-          background: 'linear-gradient(135deg, #fef3c7, #fde68a)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', mb: 1.5
-        }}>⚙️</Box>
-        <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: '#1a1815', mb: '3px' }}>Admin Panel</Typography>
-        <Typography sx={{ fontSize: '0.74rem', color: '#9a958f' }}>admin@college.edu</Typography>
-        <Box sx={{
-          display: 'inline-flex', alignItems: 'center', gap: '5px', mt: '10px',
-          px: '10px', py: '4px', borderRadius: '99px',
-          background: 'linear-gradient(135deg, #fef3c7, #fde68a)',
-          fontSize: '0.7rem', fontWeight: 600, color: '#92400e'
-        }}>⚙️ Administrator</Box>
-      </Box>
-      <Box sx={{ p: '16px 14px', flex: 1 }}>
-        <Typography sx={{ fontSize: '0.66rem', fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: '#b0aba5', px: '10px', mb: 1 }}>Dashboard</Typography>
-        {navItems.map(n => (
-          <Box key={n.id} component="button" onClick={() => setPanel(n.id)}
-            sx={{
-              display: 'flex', alignItems: 'center', gap: '10px', px: '12px', py: '9px',
-              borderRadius: '10px', fontSize: '0.84rem', fontWeight: activePanel === n.id ? 600 : 500,
-              color: activePanel === n.id ? '#2c3e7a' : '#5a5550', cursor: 'pointer', border: 'none',
-              background: activePanel === n.id ? 'linear-gradient(135deg, #e8ebf5, #f0f0fb)' : 'transparent',
-              fontFamily: 'inherit', width: '100%', textAlign: 'left', mb: '3px', transition: 'all .2s',
-              '&:hover': { background: activePanel === n.id ? 'linear-gradient(135deg, #e8ebf5, #f0f0fb)' : '#f5f3ef', color: '#1a1815' }
-            }}>
-            <span style={{ fontSize: '0.95rem', width: 22, textAlign: 'center' }}>{n.icon}</span>{n.label}
-          </Box>
-        ))}
-        <Box component="button" onClick={() => { logoutUser(); navigate('/'); }}
-          sx={{
-            display: 'flex', alignItems: 'center', gap: '10px', px: '12px', py: '9px',
-            borderRadius: '10px', fontSize: '0.84rem', fontWeight: 500, color: '#9a958f',
-            cursor: 'pointer', border: 'none', background: 'transparent', fontFamily: 'inherit',
-            width: '100%', textAlign: 'left', mt: 3, transition: 'all .2s',
-            '&:hover': { background: '#fee2e2', color: '#b91c1c' }
-          }}>
-          <span style={{ width: 22, textAlign: 'center' }}>↩</span>Sign out
-        </Box>
-      </Box>
-    </Box>
-  );
-};
-
-const StatCard = ({ icon, value, label, color = '#2c3e7a' }) => (
-  <Box sx={{
-    background: '#fff', borderRadius: '14px', border: '1px solid #e8e5e0',
-    p: '22px', transition: 'all .2s',
-    '&:hover': { borderColor: '#d0cdc7', boxShadow: '0 2px 8px rgba(0,0,0,.04)' }
-  }}>
-    <Box sx={{
-      width: 38, height: 38, borderRadius: '10px', background: `${color}12`,
-      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', mb: 1.5
-    }}>{icon}</Box>
-    <Typography sx={{ fontFamily: '"Fraunces", serif', fontSize: '2rem', fontWeight: 600, color: '#1a1815', lineHeight: 1 }}>{value}</Typography>
-    <Typography sx={{ fontSize: '0.78rem', color: '#9a958f', fontWeight: 500, mt: '6px' }}>{label}</Typography>
-  </Box>
-);
-
-const MobileNav = ({ activePanel, setPanel }) => {
-  const navItems = [
-    { id: 'overview', icon: '◻', label: 'Overview' },
-    { id: 'events', icon: '📅', label: 'Events' },
-    { id: 'registrations', icon: '🎫', label: 'Regs' },
-    { id: 'volunteers', icon: '🙋', label: 'Vols' },
-  ];
-  return (
-    <Box sx={{
-      display: { xs: 'flex', md: 'none' }, gap: 1, mb: 2.5,
-      overflow: 'auto', pb: 0.5, mx: -1, px: 1,
-      '&::-webkit-scrollbar': { display: 'none' }
-    }}>
-      {navItems.map(n => (
-        <Box key={n.id} component="button" onClick={() => setPanel(n.id)}
-          sx={{
-            display: 'flex', alignItems: 'center', gap: '6px',
-            px: '14px', py: '8px', borderRadius: '10px', flexShrink: 0,
-            fontSize: '0.78rem', fontWeight: activePanel === n.id ? 600 : 500,
-            color: activePanel === n.id ? '#2c3e7a' : '#5a5550',
-            cursor: 'pointer', border: activePanel === n.id ? '1.5px solid #2c3e7a' : '1px solid #e8e5e0',
-            background: activePanel === n.id ? '#e8ebf5' : '#fff',
-            fontFamily: 'inherit', whiteSpace: 'nowrap', transition: 'all .2s',
-            '&:hover': { borderColor: '#2c3e7a', background: '#f0f0fb' }
-          }}>
-          <span style={{ fontSize: '0.85rem' }}>{n.icon}</span>{n.label}
-        </Box>
-      ))}
-    </Box>
-  );
-};
-
-const StyledTable = ({ headers, rows, onDelete }) => (
-  <Paper sx={{
-    borderRadius: '14px', border: '1px solid #e8e5e0', overflow: 'hidden',
-    boxShadow: '0 1px 3px rgba(0,0,0,.03)'
-  }}>
-    <Box sx={{ overflowX: 'auto' }}>
-    <Table sx={{ minWidth: 600 }}>
-      <TableHead>
-        <TableRow>
-          {headers.map(h => (
-            <TableCell key={h} sx={{
-              fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase',
-              letterSpacing: '.08em', color: '#9a958f', background: '#faf9f7',
-              borderBottom: '1px solid #e8e5e0', py: 1.5
-            }}>{h}</TableCell>
-          ))}
-          {onDelete && (
-            <TableCell sx={{
-              fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase',
-              letterSpacing: '.08em', color: '#9a958f', background: '#faf9f7',
-              borderBottom: '1px solid #e8e5e0', py: 1.5, width: 60, textAlign: 'center'
-            }}>Action</TableCell>
-          )}
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {rows.length ? rows.map((row, i) => (
-          <TableRow key={i} sx={{ '&:hover td': { background: '#faf9f7' }, transition: 'all .15s' }}>
-            {row.cells.map((cell, j) => (
-              <TableCell key={j} sx={{ fontSize: '0.84rem', color: '#5a5550', borderBottom: '1px solid #f0eef2', py: 1.5 }}>{cell}</TableCell>
-            ))}
-            {onDelete && (
-              <TableCell sx={{ borderBottom: '1px solid #f0eef2', textAlign: 'center', py: 1.5 }}>
-                <Tooltip title="Delete" arrow>
-                  <IconButton onClick={() => onDelete(row.id, row.label)} size="small" sx={{
-                    color: '#c0bdb7', width: 32, height: 32,
-                    '&:hover': { color: '#b91c1c', background: '#fee2e2' }
-                  }}>
-                    <Delete sx={{ fontSize: 16 }} />
-                  </IconButton>
-                </Tooltip>
-              </TableCell>
-            )}
-          </TableRow>
-        )) : (
-          <TableRow>
-            <TableCell colSpan={headers.length + (onDelete ? 1 : 0)} sx={{
-              textAlign: 'center', py: 6, color: '#9a958f', fontSize: '0.86rem'
-            }}>No data yet</TableCell>
-          </TableRow>
-        )}
-      </TableBody>
-    </Table>
-    </Box>
-  </Paper>
-);
+const STATS_COLORS = [
+  { bg: 'bg-indigo-50', text: 'text-indigo-600' },
+  { bg: 'bg-emerald-50', text: 'text-emerald-600' },
+  { bg: 'bg-amber-50', text: 'text-amber-600' },
+  { bg: 'bg-rose-50', text: 'text-rose-600' }
+];
 
 const AdminDashboard = () => {
-  const [panel, setPanel] = useState('overview');
-  const [stats, setStats] = useState({});
-  const [regChart, setRegChart] = useState([]);
-  const [catChart, setCatChart] = useState([]);
-  const [regs, setRegs] = useState([]);
-  const [vols, setVols] = useState([]);
-  const [events, setEventsData] = useState([]);
-  const [volChart, setVolChart] = useState([]);
+  const { user } = useAuth();
+  const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [newEvOpen, setNewEvOpen] = useState(false);
-  const [newEv, setNewEv] = useState({ name: '', category_id: 1, date: '', time: '10:00', venue: '', max_participants: 50, prize_pool: '', description: '' });
-  const [alert, setAlert] = useState(null);
-  const [deleteDialog, setDeleteDialog] = useState({ open: false, type: '', id: null, name: '' });
-  const isMobile = useMediaQuery('(max-width:899px)');
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const [modalOpen, setModalOpen] = useState(false);
+  const [deleteModal, setDeleteModal] = useState({ open: false, eventId: null, eventName: '' });
+  
+  const initialForm = { name: '', description: '', date: '', time: '', venue: '', category_name: 'General', max_participants: 100, prize_pool: '', status: 'upcoming' };
+  const [form, setForm] = useState(initialForm);
+  const [editingId, setEditingId] = useState(null);
 
-  useEffect(() => {
-    Promise.all([getDashboardStats(), getRegistrationsPerEvent(), getCategoryBreakdown(), getVolunteerDistribution(), getAllRegistrations(), getAllAssignments(), getEvents()])
-      .then(([s, r, c, v, regsData, volsData, eventsData]) => {
-        setStats(s.data); setRegChart(r.data); setCatChart(c.data); setVolChart(v.data); setRegs(regsData.data); setVols(volsData.data); setEventsData(eventsData.data);
-      }).catch(console.error).finally(() => setLoading(false));
-  }, []);
+  const showToast = (type, message) => setToast({ show: true, type, message });
 
-  const showAlert = (type, msg) => { setAlert({ type, msg }); setTimeout(() => setAlert(null), 4000); };
-
-  const handleCreateEvent = async () => {
+  const loadData = async () => {
+    setLoading(true);
     try {
-      const payload = {
-        ...newEv,
-        prize_pool: newEv.prize_pool ? formatRupees(newEv.prize_pool) : ''
-      };
-      await createEvent(payload); setNewEvOpen(false);
-      showAlert('success', 'Event created successfully!');
-    } catch (err) { showAlert('error', err.response?.data?.message || 'Failed to create event'); }
-  };
-
-  const openDeleteDialog = (type, id, name) => setDeleteDialog({ open: true, type, id, name });
-
-  const handleDelete = async () => {
-    const { type, id, name } = deleteDialog;
-    setDeleteDialog({ open: false, type: '', id: null, name: '' });
-    try {
-      if (type === 'event') {
-        await deleteEvent(id);
-        setEventsData(prev => prev.filter(e => e.event_id !== id));
-        setRegChart(prev => prev.filter(e => e.event_id !== id));
-        showAlert('success', `Deleted event "${name}"`);
-      } else if (type === 'registration') {
-        await adminDeleteRegistration(id);
-        setRegs(prev => prev.filter(r => r.registration_id !== id));
-        showAlert('success', `Deleted registration for "${name}"`);
-      } else {
-        await adminDeleteAssignment(id);
-        setVols(prev => prev.filter(v => v.assignment_id !== id));
-        showAlert('success', `Deleted volunteer assignment for "${name}"`);
-      }
+      const res = await getEvents();
+      setEvents(res.data);
     } catch (err) {
-      showAlert('error', err.response?.data?.message || 'Delete failed');
+      showToast('error', 'Failed to load events');
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (loading) return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 12 }}>
-      <CircularProgress sx={{ color: '#2c3e7a', mb: 2 }} />
-      <Typography sx={{ fontSize: '0.85rem', color: '#9a958f' }}>Loading admin panel...</Typography>
-    </Box>
+  useEffect(() => { loadData(); }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const payload = { ...form, max_participants: parseInt(form.max_participants) || 100 };
+      if (editingId) {
+        await updateEvent(editingId, payload);
+        showToast('success', 'Event updated successfully');
+      } else {
+        await createEvent(payload);
+        showToast('success', 'Event created successfully');
+      }
+      setModalOpen(false);
+      loadData();
+    } catch (err) {
+      showToast('error', err.response?.data?.message || 'Operation failed');
+    }
+  };
+
+  const handleEditClick = (ev) => {
+    setForm({
+      name: ev.name, description: ev.description || '', date: formatDateForInput(ev.date),
+      time: ev.time ? ev.time.slice(0, 5) : '', venue: ev.venue || '', category_name: ev.category_name,
+      max_participants: ev.max_participants, prize_pool: ev.prize_pool || '', status: ev.status
+    });
+    setEditingId(ev.event_id);
+    setModalOpen(true);
+  };
+
+  const handleDelete = async () => {
+    try {
+      await deleteEvent(deleteModal.eventId);
+      showToast('success', 'Event deleted successfully');
+      setDeleteModal({ open: false, eventId: null, eventName: '' });
+      loadData();
+    } catch (err) {
+      showToast('error', err.response?.data?.message || 'Delete failed');
+    }
+  };
+
+  const metrics = {
+    totalEvents: events.length,
+    activeEvents: events.filter(e => e.status !== 'cancelled' && e.status !== 'completed').length,
+    totalCapacity: events.reduce((acc, e) => acc + (e.max_participants || 0), 0),
+    totalRegistrations: events.reduce((acc, e) => acc + (e.current_participants || 0), 0)
+  };
+
+  const chartData = events.slice(0, 8).map(e => ({ name: e.name.substring(0, 15)+'...', regs: e.current_participants || 0, cap: e.max_participants }));
+
+  const StatCard = ({ icon: Icon, label, value, colorIdx }) => (
+    <motion.div whileHover={{ scale: 1.02 }} className="bg-white rounded-3xl p-6 border border-stone-200 shadow-sm flex items-center gap-4">
+      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 ${STATS_COLORS[colorIdx].bg} ${STATS_COLORS[colorIdx].text}`}>
+        <Icon className="w-7 h-7" />
+      </div>
+      <div>
+        <p className="text-sm font-semibold text-stone-500 mb-1 tracking-wide">{label}</p>
+        <p className="text-3xl font-display font-bold text-stone-900">{value}</p>
+      </div>
+    </motion.div>
   );
 
   return (
-    <Box sx={{ display: 'flex', minHeight: 'calc(100vh - 64px)', background: '#faf9f6' }}>
-      <Sidebar activePanel={panel} setPanel={setPanel} />
-      <Box sx={{ flex: 1, p: { xs: 2, sm: 3, md: 5 }, maxWidth: 1060 }}>
+    <div className="min-h-[calc(100vh-64px)] bg-stone-50 flex flex-col md:flex-row">
+      <Toast {...toast} onClose={() => setToast({ ...toast, show: false })} />
 
-        {/* Mobile nav tabs */}
-        <MobileNav activePanel={panel} setPanel={setPanel} />
+      {/* Sidebar */}
+      <div className="hidden md:flex flex-col w-64 border-r border-stone-200 bg-white sticky top-16 h-[calc(100vh-64px)] z-10">
+        <div className="p-6 pb-2">
+          <h2 className="text-2xl font-display font-bold text-indigo-900 mb-1">Admin Panel</h2>
+          <p className="text-stone-500 text-sm font-medium">FestZone Management</p>
+        </div>
+        <div className="p-4 flex-1">
+          <div className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-indigo-50 text-indigo-800 font-semibold text-sm">
+            <LayoutDashboard className="w-5 h-5 text-indigo-600" /> Dashboard Overview
+          </div>
+        </div>
+      </div>
 
-        {/* Alert */}
-        {alert && (
-          <Alert severity={alert.type} sx={{
-            mb: 3, borderRadius: '12px', border: '1px solid',
-            borderColor: alert.type === 'success' ? '#bbf7d0' : '#fecaca',
-          }} onClose={() => setAlert(null)}>
-            {alert.msg}
-          </Alert>
+      {/* Main Content */}
+      <div className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-3xl font-display font-bold text-stone-900">Dashboard Overview</h1>
+            <p className="text-stone-500 font-medium mt-1">Manage events, registrations, and monitor analytics.</p>
+          </div>
+          <Button onClick={() => { setForm(initialForm); setEditingId(null); setModalOpen(true); }} className="shrink-0 gap-2 font-medium">
+            <Plus className="w-4 h-4" /> New Event
+          </Button>
+        </div>
+
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <StatCard icon={CalendarDays} label="Total Events" value={metrics.totalEvents} colorIdx={0} />
+          <StatCard icon={LayoutDashboard} label="Active Events" value={metrics.activeEvents} colorIdx={1} />
+          <StatCard icon={Users} label="Total Capacity" value={metrics.totalCapacity} colorIdx={2} />
+          <StatCard icon={Users} label="Registrations" value={metrics.totalRegistrations} colorIdx={3} />
+        </div>
+
+        {/* Charts */}
+        {!loading && events.length > 0 && (
+          <div className="bg-white rounded-3xl p-6 border border-stone-200 shadow-sm mb-8">
+            <h3 className="font-display font-semibold text-lg text-stone-800 mb-6">Registration Analytics (Top 8 Recent)</h3>
+            <div className="h-[300px] w-full mt-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e8e5e0" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#9a958f', fontSize: 12, fontWeight: 500}} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#9a958f', fontSize: 12, fontWeight: 500}} />
+                  <Tooltip cursor={{fill: '#f5f3ef'}} contentStyle={{borderRadius: '12px', border: '1px solid #e8e5e0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)', fontWeight: 500}} />
+                  <Bar dataKey="regs" name="Registered" fill="#4f46e5" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                  <Bar dataKey="cap" name="Capacity" fill="#e2e8f0" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         )}
 
-        {/* OVERVIEW */}
-        {panel === 'overview' && (
-          <Box>
-            <Typography sx={{ fontFamily: '"Fraunces", serif', fontSize: { xs: '1.4rem', md: '1.6rem' }, fontWeight: 600, color: '#1a1815', mb: '6px' }}>
-              Admin Overview
-            </Typography>
-            <Typography sx={{ fontSize: '0.88rem', color: '#9a958f', mb: 4 }}>FestZone management at a glance</Typography>
-            <Grid container spacing={2} sx={{ mb: 4 }}>
-              <Grid item xs={6} sm={3}><StatCard icon="📅" value={stats.total_events || 0} label="Total Events" color="#2c3e7a" /></Grid>
-              <Grid item xs={6} sm={3}><StatCard icon="👥" value={stats.total_students || 0} label="Students" color="#7c3aed" /></Grid>
-              <Grid item xs={6} sm={3}><StatCard icon="🎫" value={stats.total_registrations || 0} label="Registrations" color="#15803d" /></Grid>
-              <Grid item xs={6} sm={3}><StatCard icon="🙋" value={stats.total_volunteers || 0} label="Volunteers" color="#b45309" /></Grid>
-            </Grid>
-            {/* Top Event Highlight */}
-            {regChart.length > 0 && (
-              <Box sx={{
-                background: 'linear-gradient(135deg, #2c3e7a, #3d52a8)', borderRadius: '14px',
-                p: { xs: 2.5, md: 3 }, mb: 3, color: '#fff', display: 'flex', alignItems: 'center', gap: 2,
-                boxShadow: '0 4px 16px rgba(44,62,122,.2)'
-              }}>
-                <Box sx={{ fontSize: '2rem' }}>🏆</Box>
-                <Box>
-                  <Typography sx={{ fontSize: '0.74rem', fontWeight: 500, color: 'rgba(255,255,255,.6)', textTransform: 'uppercase', letterSpacing: '.08em' }}>Most Popular Event</Typography>
-                  <Typography sx={{ fontFamily: '"Fraunces", serif', fontSize: '1.15rem', fontWeight: 600, mt: '2px' }}>
-                    {regChart[0].event_name}
-                  </Typography>
-                  <Typography sx={{ fontSize: '0.82rem', color: 'rgba(255,255,255,.7)', mt: '2px' }}>
-                    {regChart[0].total_registrations} registrations
-                  </Typography>
-                </Box>
-              </Box>
-            )}
+        {/* Events Table */}
+        <div className="bg-white rounded-3xl border border-stone-200 shadow-sm overflow-hidden">
+          <div className="px-6 py-5 border-b border-stone-100 flex items-center justify-between bg-stone-50/50">
+            <h3 className="font-display font-semibold text-lg text-stone-800">All Events Matrix</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-white border-b border-stone-100 text-xs uppercase tracking-wider text-stone-400">
+                  <th className="px-6 py-4 font-semibold">Event Name</th>
+                  <th className="px-6 py-4 font-semibold">Date & Time</th>
+                  <th className="px-6 py-4 font-semibold">Category</th>
+                  <th className="px-6 py-4 font-semibold">Status</th>
+                  <th className="px-6 py-4 font-semibold text-center">Filled</th>
+                  <th className="px-6 py-4 font-semibold text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-stone-100">
+                {loading ? (
+                  [...Array(5)].map((_, i) => <SkeletonRow key={i} columns={6} />)
+                ) : events.map(event => (
+                  <tr key={event.event_id} className="hover:bg-stone-50 transition-colors">
+                    <td className="px-6 py-4">
+                      <p className="font-semibold text-stone-800 line-clamp-1">{event.name}</p>
+                      <p className="text-xs text-stone-500 mt-0.5 max-w-[200px] truncate font-medium">{event.venue}</p>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-stone-600 whitespace-nowrap font-medium">
+                      {new Date(event.date).toLocaleDateString()}
+                      {event.time && <span className="block text-[11px] text-stone-400 mt-0.5">{event.time.slice(0,5)}</span>}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="inline-flex px-2 py-1 rounded bg-stone-100 text-stone-600 text-[10px] font-bold uppercase tracking-wider">
+                        {event.category_name}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex px-2 py-1 rounded border text-[10px] font-bold uppercase tracking-wider ${
+                        event.status === 'upcoming' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                        event.status === 'ongoing' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                        event.status === 'completed' ? 'bg-stone-50 text-stone-500 border-stone-200' :
+                        'bg-rose-50 text-rose-700 border-rose-200'
+                      }`}>
+                        {event.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <div className="inline-flex items-center justify-center bg-stone-100 text-stone-700 text-[11px] font-bold px-2 py-1 rounded">
+                        {event.current_participants || 0} / {event.max_participants}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center justify-end gap-2">
+                        <button onClick={() => handleEditClick(event)} className="p-2 text-stone-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Edit">
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button onClick={() => setDeleteModal({ open: true, eventId: event.event_id, eventName: event.name })} className="p-2 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Delete">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
 
-            <Grid container spacing={3}>
-              {/* Registrations per Event - Bar Chart */}
-              <Grid item xs={12} md={8}>
-                <Box sx={{
-                  background: '#fff', borderRadius: '14px', border: '1px solid #e8e5e0',
-                  p: { xs: 2.5, md: 3 }, boxShadow: '0 1px 3px rgba(0,0,0,.03)'
-                }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-                    <Box>
-                      <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: '#1a1815' }}>Registrations per Event</Typography>
-                      <Typography sx={{ fontSize: '0.74rem', color: '#9a958f', mt: '2px' }}>Number of confirmed participant sign-ups for each event</Typography>
-                    </Box>
-                    <Box sx={{ px: '10px', py: '4px', borderRadius: '8px', background: '#f0f0fb', fontSize: '0.72rem', fontWeight: 600, color: '#2c3e7a' }}>
-                      Top {Math.min(regChart.length, 8)} events
-                    </Box>
-                  </Box>
-                  <ResponsiveContainer width="100%" height={280}>
-                    <BarChart data={regChart.slice(0, 8)} margin={{ top: 10, right: 10, left: 0, bottom: 55 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e8e5e0" vertical={false} />
-                      <XAxis dataKey="event_name" tick={{ fontSize: 9, fill: '#9a958f' }} angle={-35} textAnchor="end" interval={0} />
-                      <YAxis tick={{ fontSize: 10, fill: '#9a958f' }} label={{ value: 'Registrations', angle: -90, position: 'insideLeft', offset: 10, style: { fontSize: 11, fill: '#9a958f' } }} allowDecimals={false} />
-                      <ReTooltip contentStyle={{ borderRadius: 10, border: '1px solid #e8e5e0', fontSize: '0.8rem', boxShadow: '0 4px 12px rgba(0,0,0,.08)' }} formatter={(value) => [`${value} registrations`, 'Count']} />
-                      <Bar dataKey="total_registrations" fill="#2c3e7a" radius={[6, 6, 0, 0]} name="Registrations">
-                        <LabelList dataKey="total_registrations" position="top" style={{ fontSize: 10, fill: '#5a5550', fontWeight: 600 }} />
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </Box>
-              </Grid>
+      {/* Delete Confirmation Modal */}
+      <Modal 
+        isOpen={deleteModal.open} onClose={() => setDeleteModal({ open: false, eventId: null, eventName: '' })}
+        title="Delete Event" icon={Trash2} iconBg="bg-rose-100" iconColor="text-rose-600"
+        actions={<div className="flex w-full gap-3 justify-end"><Button variant="ghost" onClick={() => setDeleteModal({ open: false, eventId: null, eventName: '' })}>Cancel</Button><Button variant="danger" onClick={handleDelete}>Yes, Delete event</Button></div>}
+      >
+        <p className="text-stone-600 font-medium">Are you sure you want to delete <strong className="text-stone-900">{deleteModal.eventName}</strong>? This action will remove all registrations and cannot be undone.</p>
+      </Modal>
 
-              {/* Events by Category - Pie Chart */}
-              <Grid item xs={12} md={4}>
-                <Box sx={{
-                  background: '#fff', borderRadius: '14px', border: '1px solid #e8e5e0',
-                  p: { xs: 2.5, md: 3 }, height: '100%', boxShadow: '0 1px 3px rgba(0,0,0,.03)'
-                }}>
-                  <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: '#1a1815', mb: '2px' }}>Events by Category</Typography>
-                  <Typography sx={{ fontSize: '0.74rem', color: '#9a958f', mb: 2 }}>Distribution of events across categories</Typography>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <PieChart>
-                      <Pie data={catChart} dataKey="event_count" nameKey="category" cx="50%" cy="50%" innerRadius={35} outerRadius={65} paddingAngle={2}>
-                        {catChart.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                      </Pie>
-                      <ReTooltip contentStyle={{ borderRadius: 10, border: '1px solid #e8e5e0', fontSize: '0.8rem' }} formatter={(value, name) => [`${value} events`, name]} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  {/* Legend below pie */}
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '6px 12px', mt: 1 }}>
-                    {catChart.map((c, i) => (
-                      <Box key={c.category} sx={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        <Box sx={{ width: 8, height: 8, borderRadius: '50%', background: COLORS[i % COLORS.length], flexShrink: 0 }} />
-                        <Typography sx={{ fontSize: '0.68rem', color: '#5a5550' }}>{c.category} ({c.event_count})</Typography>
-                      </Box>
-                    ))}
-                  </Box>
-                </Box>
-              </Grid>
+      {/* Create/Edit Event Modal */}
+      <Modal 
+        isOpen={modalOpen} onClose={() => setModalOpen(false)}
+        title={editingId ? "Edit Event" : "Create New Event"} icon={editingId ? Pencil : Plus}
+        actions={
+          <div className="w-full flex justify-end gap-3">
+            <Button variant="ghost" onClick={() => setModalOpen(false)}>Cancel</Button>
+            <Button className="bg-gradient-to-br from-indigo-800 to-indigo-700 shadow-glow-indigo" onClick={handleSubmit}>{editingId ? "Save Changes" : "Publish Event"}</Button>
+          </div>
+        }
+      >
+        <form id="event-form" onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="col-span-2">
+              <label className="block text-sm font-semibold text-stone-700 mb-1.5">Event Name</label>
+              <input type="text" required value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 font-medium" />
+            </div>
+            
+            <div className="col-span-2">
+              <label className="block text-sm font-semibold text-stone-700 mb-1.5">Description</label>
+              <textarea rows={3} value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 resize-none font-medium text-stone-600" />
+            </div>
 
-              {/* Volunteer Distribution - Bar Chart */}
-              <Grid item xs={12} md={8}>
-                <Box sx={{
-                  background: '#fff', borderRadius: '14px', border: '1px solid #e8e5e0',
-                  p: { xs: 2.5, md: 3 }, boxShadow: '0 1px 3px rgba(0,0,0,.03)'
-                }}>
-                  <Box sx={{ mb: 3 }}>
-                    <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: '#1a1815' }}>Volunteer Distribution</Typography>
-                    <Typography sx={{ fontSize: '0.74rem', color: '#9a958f', mt: '2px' }}>Number of volunteers assigned to each event</Typography>
-                  </Box>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <BarChart data={volChart.slice(0, 8)} margin={{ top: 10, right: 10, left: 0, bottom: 55 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e8e5e0" vertical={false} />
-                      <XAxis dataKey="event_name" tick={{ fontSize: 9, fill: '#9a958f' }} angle={-35} textAnchor="end" interval={0} />
-                      <YAxis tick={{ fontSize: 10, fill: '#9a958f' }} label={{ value: 'Volunteers', angle: -90, position: 'insideLeft', offset: 10, style: { fontSize: 11, fill: '#9a958f' } }} allowDecimals={false} />
-                      <ReTooltip contentStyle={{ borderRadius: 10, border: '1px solid #e8e5e0', fontSize: '0.8rem', boxShadow: '0 4px 12px rgba(0,0,0,.08)' }} formatter={(value) => [`${value} volunteers`, 'Count']} />
-                      <Bar dataKey="volunteer_count" fill="#b45309" radius={[6, 6, 0, 0]} name="Volunteers">
-                        <LabelList dataKey="volunteer_count" position="top" style={{ fontSize: 10, fill: '#5a5550', fontWeight: 600 }} />
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </Box>
-              </Grid>
+            <div>
+              <label className="block text-sm font-semibold text-stone-700 mb-1.5">Date</label>
+              <input type="date" required value={form.date} onChange={e => setForm({...form, date: e.target.value})} className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 font-medium text-stone-600" />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-stone-700 mb-1.5">Time</label>
+              <input type="time" value={form.time} onChange={e => setForm({...form, time: e.target.value})} className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 font-medium text-stone-600" />
+            </div>
 
-              {/* Category Participants Summary Table */}
-              <Grid item xs={12} md={4}>
-                <Box sx={{
-                  background: '#fff', borderRadius: '14px', border: '1px solid #e8e5e0',
-                  p: { xs: 2.5, md: 3 }, height: '100%', boxShadow: '0 1px 3px rgba(0,0,0,.03)'
-                }}>
-                  <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: '#1a1815', mb: '2px' }}>Category Summary</Typography>
-                  <Typography sx={{ fontSize: '0.74rem', color: '#9a958f', mb: 2 }}>Events and participants per category</Typography>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {catChart.map((c, i) => (
-                      <Box key={c.category} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: '10px 12px', borderRadius: '10px', background: '#faf9f7', border: '1px solid #f0eef2' }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <Box sx={{ width: 10, height: 10, borderRadius: '3px', background: COLORS[i % COLORS.length], flexShrink: 0 }} />
-                          <Typography sx={{ fontSize: '0.8rem', fontWeight: 600, color: '#1a1815' }}>{c.category}</Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                          <Typography sx={{ fontSize: '0.72rem', color: '#9a958f' }}>{c.event_count} events</Typography>
-                          <Typography sx={{ fontSize: '0.72rem', fontWeight: 600, color: '#2c3e7a', background: '#e8ebf5', px: '8px', py: '2px', borderRadius: '6px' }}>{c.total_participants} participants</Typography>
-                        </Box>
-                      </Box>
-                    ))}
-                  </Box>
-                </Box>
-              </Grid>
-            </Grid>
-          </Box>
-        )}
+            <div>
+              <label className="block text-sm font-semibold text-stone-700 mb-1.5">Venue</label>
+              <input type="text" value={form.venue} onChange={e => setForm({...form, venue: e.target.value})} className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 font-medium text-stone-600" />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-stone-700 mb-1.5">Category</label>
+              <select value={form.category_name} onChange={e => setForm({...form, category_name: e.target.value})} className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 font-medium text-stone-700">
+                {['Music', 'Dance', 'Tech', 'Art', 'Sports', 'Drama', 'Literary', 'Photography', 'General'].map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
 
-        {/* EVENTS */}
-        {panel === 'events' && (
-          <Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-              <Box>
-                <Typography sx={{ fontFamily: '"Fraunces", serif', fontSize: { xs: '1.4rem', md: '1.6rem' }, fontWeight: 600, color: '#1a1815', mb: '6px' }}>Events</Typography>
-                <Typography sx={{ fontSize: '0.88rem', color: '#9a958f' }}>Manage all fest events ({regChart.length})</Typography>
-              </Box>
-              <Button onClick={() => setNewEvOpen(true)} sx={{
-                background: 'linear-gradient(135deg, #2c3e7a, #3d52a8)', color: '#fff',
-                fontSize: '0.84rem', px: 3, py: 1.1, borderRadius: '10px', fontWeight: 600,
-                textTransform: 'none', boxShadow: '0 2px 8px rgba(44,62,122,.2)',
-                '&:hover': { background: 'linear-gradient(135deg, #243368, #354897)' }
-              }}>+ New Event</Button>
-            </Box>
-            <StyledTable
-              headers={['Event', 'Category', 'Date', 'Venue', 'Capacity', 'Prize']}
-              onDelete={(id, name) => openDeleteDialog('event', id, name)}
-              rows={(events.length ? events : regChart).map(e => ({
-                id: e.event_id,
-                label: e.event_name || e.name,
-                cells: [
-                  <Typography sx={{ fontWeight: 600, color: '#1a1815', fontSize: '0.86rem' }}>{e.event_name || e.name}</Typography>,
-                  <Box sx={{ display: 'inline-block', px: '10px', py: '3px', borderRadius: '99px', fontSize: '0.7rem', fontWeight: 600, background: `${CAT_COLORS[e.category_name] || '#2c3e7a'}12`, color: CAT_COLORS[e.category_name] || '#2c3e7a' }}>{e.category_name}</Box>,
-                  new Date(e.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
-                  e.venue || '—',
-                  `${e.participant_count || e.current_participants || 0} / ${e.max_participants}`,
-                  e.prize_pool ? formatRupees(e.prize_pool) : '—'
-                ]
-              }))}
-            />
-          </Box>
-        )}
+            <div>
+              <label className="block text-sm font-semibold text-stone-700 mb-1.5">Max Participants</label>
+              <input type="number" min="1" required value={form.max_participants} onChange={e => setForm({...form, max_participants: e.target.value})} className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 font-medium text-stone-600" />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-stone-700 mb-1.5">Prize Pool</label>
+              <input type="text" value={form.prize_pool} onChange={e => setForm({...form, prize_pool: e.target.value})} className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 font-medium text-stone-600 placeholder:text-stone-400" placeholder="e.g. 50000" />
+            </div>
 
-        {/* REGISTRATIONS (with delete) */}
-        {panel === 'registrations' && (
-          <Box>
-            <Typography sx={{ fontFamily: '"Fraunces", serif', fontSize: { xs: '1.4rem', md: '1.6rem' }, fontWeight: 600, color: '#1a1815', mb: '6px' }}>All Registrations</Typography>
-            <Typography sx={{ fontSize: '0.88rem', color: '#9a958f', mb: 4 }}>Participant sign-ups across all events ({regs.length})</Typography>
-            <StyledTable
-              headers={['Student', 'Email', 'Event', 'Category', 'Date Registered', 'Status']}
-              onDelete={(id, name) => openDeleteDialog('registration', id, name)}
-              rows={regs.map(r => ({
-                id: r.registration_id,
-                label: `${r.student_name} - ${r.event_name}`,
-                cells: [
-                  <Typography sx={{ fontWeight: 600, color: '#1a1815', fontSize: '0.86rem' }}>{r.student_name}</Typography>,
-                  <Typography sx={{ fontSize: '0.82rem', color: '#9a958f' }}>{r.student_email}</Typography>,
-                  r.event_name,
-                  <Box sx={{ display: 'inline-block', px: '10px', py: '3px', borderRadius: '99px', fontSize: '0.7rem', fontWeight: 600, background: `${CAT_COLORS[r.category] || '#2c3e7a'}12`, color: CAT_COLORS[r.category] || '#2c3e7a' }}>{r.category}</Box>,
-                  new Date(r.registration_date || r.registered_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
-                  <Box sx={{ display: 'inline-block', px: '10px', py: '3px', borderRadius: '99px', fontSize: '0.7rem', fontWeight: 600, background: '#dcfce7', color: '#15803d' }}>✓ {r.status || 'confirmed'}</Box>
-                ]
-              }))}
-            />
-          </Box>
-        )}
-
-        {/* VOLUNTEERS (with delete) */}
-        {panel === 'volunteers' && (
-          <Box>
-            <Typography sx={{ fontFamily: '"Fraunces", serif', fontSize: { xs: '1.4rem', md: '1.6rem' }, fontWeight: 600, color: '#1a1815', mb: '6px' }}>Volunteer Applications</Typography>
-            <Typography sx={{ fontSize: '0.88rem', color: '#9a958f', mb: 4 }}>Students who applied to volunteer ({vols.length})</Typography>
-            <StyledTable
-              headers={['Student', 'Email', 'Event', 'Role', 'Availability', 'Status']}
-              onDelete={(id, name) => openDeleteDialog('assignment', id, name)}
-              rows={vols.map(v => ({
-                id: v.assignment_id,
-                label: `${v.volunteer_name} - ${v.event_name}`,
-                cells: [
-                  <Typography sx={{ fontWeight: 600, color: '#1a1815', fontSize: '0.86rem' }}>{v.volunteer_name}</Typography>,
-                  <Typography sx={{ fontSize: '0.82rem', color: '#9a958f' }}>{v.email}</Typography>,
-                  v.event_name,
-                  v.role || 'Any',
-                  v.availability || 'All days',
-                  <Box sx={{ display: 'inline-block', px: '10px', py: '3px', borderRadius: '99px', fontSize: '0.7rem', fontWeight: 600, background: '#fef3c7', color: '#92400e' }}>Pending</Box>
-                ]
-              }))}
-            />
-          </Box>
-        )}
-      </Box>
-
-      {/* New Event Dialog */}
-      <Dialog open={newEvOpen} onClose={() => setNewEvOpen(false)} maxWidth="sm" fullWidth fullScreen={isMobile}
-        PaperProps={{ sx: { borderRadius: isMobile ? 0 : '18px', border: isMobile ? 'none' : '1px solid #e8e5e0' } }}>
-        <DialogTitle sx={{ fontFamily: '"Fraunces", serif', fontWeight: 600, fontSize: '1.25rem', color: '#1a1815', pt: 3, px: 3, pb: 1 }}>
-          Create New Event
-        </DialogTitle>
-        <DialogContent sx={{ px: 3, pt: '16px !important' }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-            {[['name', 'Event Name', 'text', '24hr Hackathon'], ['date', 'Date', 'date', ''], ['time', 'Time', 'time', '10:00'], ['venue', 'Venue', 'text', 'CS Lab Block'], ['max_participants', 'Max Participants', 'number', '50'], ['prize_pool', 'Prize Pool', 'text', '₹50,000'], ['description', 'Description', 'text', '']].map(([k, l, t, p]) => (
-              <Box key={k}>
-                <Typography sx={{ fontSize: '0.76rem', fontWeight: 600, color: '#5a5550', mb: '8px' }}>{l}</Typography>
-                <TextField size="small" fullWidth type={t} value={newEv[k]}
-                  onChange={e => setNewEv({ ...newEv, [k]: e.target.value })}
-                  placeholder={p} sx={inputSx} />
-              </Box>
-            ))}
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 3, pt: 1 }}>
-          <Button onClick={() => setNewEvOpen(false)} sx={{
-            color: '#5a5550', fontWeight: 500, borderRadius: '10px', px: 2.5,
-            border: '1px solid #e8e5e0', textTransform: 'none',
-            '&:hover': { background: '#f5f3ef', transform: 'none' }
-          }}>Cancel</Button>
-          <Button onClick={handleCreateEvent} sx={{
-            background: 'linear-gradient(135deg, #2c3e7a, #3d52a8)', color: '#fff',
-            px: 3, borderRadius: '10px', fontWeight: 600, textTransform: 'none',
-            '&:hover': { background: 'linear-gradient(135deg, #243368, #354897)' }
-          }}>Create Event</Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialog.open} onClose={() => setDeleteDialog({ open: false, type: '', id: null, name: '' })}
-        PaperProps={{ sx: { borderRadius: isMobile ? '14px' : '18px', border: '1px solid #e8e5e0', maxWidth: 440, width: '100%', mx: 2 } }}>
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pt: 3, px: 3, pb: 1 }}>
-          <Box sx={{
-            width: 44, height: 44, borderRadius: '12px', background: '#fee2e2',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
-          }}>
-            <Warning sx={{ color: '#b91c1c', fontSize: 22 }} />
-          </Box>
-          <Typography sx={{ fontFamily: '"Fraunces", serif', fontWeight: 600, fontSize: '1.15rem', color: '#1a1815' }}>
-            Confirm Delete
-          </Typography>
-        </DialogTitle>
-        <DialogContent sx={{ px: 3, pt: '8px !important' }}>
-          <Typography sx={{ fontSize: '0.88rem', color: '#5a5550', lineHeight: 1.7 }}>
-            Are you sure you want to delete this {deleteDialog.type === 'event' ? 'event' : deleteDialog.type === 'registration' ? 'registration' : 'volunteer assignment'}?
-          </Typography>
-          <Box sx={{
-            mt: 1.5, p: '12px 16px', background: '#faf9f7', borderRadius: '10px',
-            border: '1px solid #e8e5e0', fontSize: '0.86rem', fontWeight: 600, color: '#1a1815'
-          }}>
-            {deleteDialog.name}
-          </Box>
-          <Typography sx={{ fontSize: '0.82rem', color: '#9a958f', mt: 1.5 }}>
-            This action cannot be undone. The record will be permanently removed.
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 3, pt: 1, gap: 1 }}>
-          <Button onClick={() => setDeleteDialog({ open: false, type: '', id: null, name: '' })}
-            sx={{
-              color: '#5a5550', fontWeight: 500, borderRadius: '10px', px: 2.5,
-              border: '1px solid #e8e5e0', textTransform: 'none',
-              '&:hover': { background: '#f5f3ef', transform: 'none' }
-            }}>Cancel</Button>
-          <Button onClick={handleDelete} sx={{
-            background: 'linear-gradient(135deg, #b91c1c, #dc2626)', color: '#fff',
-            px: 3, borderRadius: '10px', fontWeight: 600, textTransform: 'none',
-            boxShadow: '0 2px 8px rgba(185,28,28,.25)',
-            '&:hover': { background: 'linear-gradient(135deg, #991b1b, #b91c1c)' }
-          }}>Yes, Delete</Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
+            <div className="col-span-2">
+              <label className="block text-sm font-semibold text-stone-700 mb-1.5">Status</label>
+              <select value={form.status} onChange={e => setForm({...form, status: e.target.value})} className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 font-medium text-stone-700">
+                {['upcoming', 'ongoing', 'completed', 'cancelled'].map(s => <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>)}
+              </select>
+            </div>
+          </div>
+        </form>
+      </Modal>
+    </div>
   );
 };
-
 export default AdminDashboard;

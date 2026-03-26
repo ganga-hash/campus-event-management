@@ -1,120 +1,187 @@
 import React, { useState } from 'react';
-import { AppBar, Toolbar, Button, Box, Typography, IconButton, Avatar, Menu, MenuItem, Divider, useMediaQuery } from '@mui/material';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Menu as MenuIcon } from '@mui/icons-material';
+import { Menu, X, LogOut, LayoutDashboard, Calendar } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 
 const Navbar = () => {
   const { user, logoutUser, isAdmin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [anchor, setAnchor] = useState(null);
-  const [mobileMenu, setMobileMenu] = useState(null);
-  const isMobile = useMediaQuery('(max-width:768px)');
-  const handleLogout = () => { logoutUser(); navigate('/'); setAnchor(null); };
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  
+  const handleLogout = () => { 
+    logoutUser(); 
+    navigate('/'); 
+    setDropdownOpen(false); 
+    setMobileMenuOpen(false);
+  };
+  
   const isActive = (path) => location.pathname === path;
 
-  const linkSx = (path) => ({
-    color: isActive(path) ? '#2c3e7a' : '#5a5550',
-    fontWeight: isActive(path) ? 600 : 500,
-    fontSize: '0.85rem',
-    px: 2,
-    py: 0.8,
-    borderRadius: '8px',
-    position: 'relative',
-    '&:hover': { background: '#e8ebf5', color: '#2c3e7a', transform: 'none' },
-    '&::after': isActive(path) ? {
-      content: '""', position: 'absolute', bottom: -2, left: '50%', transform: 'translateX(-50%)',
-      width: 20, height: 2, borderRadius: 1, background: '#2c3e7a'
-    } : {}
-  });
+  // desktop link
+  const NavLink = ({ to, children }) => (
+    <Link to={to} className="relative px-4 py-2 text-sm font-medium rounded-lg transition-colors group">
+      <span className={`relative z-10 ${isActive(to) ? 'text-indigo-800 font-semibold' : 'text-stone-600 group-hover:text-indigo-800'}`}>
+        {children}
+      </span>
+      {isActive(to) && (
+        <motion.div layoutId="navbar-indicator" className="absolute bottom-0 left-1/2 -translate-x-1/2 w-5 h-0.5 bg-indigo-800 rounded-full" />
+      )}
+      <div className="absolute inset-0 bg-indigo-50 rounded-lg opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100 transition-all duration-200 z-0" />
+    </Link>
+  );
 
   return (
-    <AppBar position="sticky" elevation={0} sx={{
-      background: 'rgba(255,255,255,0.92)',
-      backdropFilter: 'blur(20px)',
-      borderBottom: '1px solid #e8e5e0',
-      color: '#1a1815'
-    }}>
-      <Toolbar sx={{ maxWidth: 1200, mx: 'auto', width: '100%', px: { xs: 1.5, sm: 2, md: 4 }, minHeight: { xs: '54px !important', sm: '60px !important' }, gap: 1 }}>
-        <Typography component={Link} to="/" sx={{
-          fontFamily: '"Fraunces", serif', fontSize: { xs: '1.15rem', sm: '1.3rem' }, fontWeight: 700,
-          color: '#2c3e7a', textDecoration: 'none', flexGrow: 1, letterSpacing: '-0.02em',
-          display: 'flex', alignItems: 'center', gap: 1,
-          '& span': { fontWeight: 300, fontStyle: 'italic', color: '#7886C7' }
-        }}>
-          Fest<span>Zone</span>
-        </Typography>
+    <nav className="sticky top-0 z-50 glass border-b border-stone-200/50 text-stone-800">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-16">
+          {/* Logo */}
+          <Link to="/" className="flex items-center gap-2 text-xl sm:text-2xl font-display font-bold text-indigo-800 tracking-tight">
+            Fest<span className="font-light italic text-indigo-400">Zone</span>
+          </Link>
 
-        {isMobile ? (
-          <>
-            <IconButton onClick={e => setMobileMenu(e.currentTarget)}>
-              <MenuIcon />
-            </IconButton>
-            <Menu anchorEl={mobileMenu} open={Boolean(mobileMenu)} onClose={() => setMobileMenu(null)}
-              PaperProps={{ sx: { borderRadius: '14px', border: '1px solid #e8e5e0', boxShadow: '0 8px 32px rgba(0,0,0,.12)', mt: 1, minWidth: 200, p: '4px' } }}>
-              <MenuItem onClick={() => { navigate('/events'); setMobileMenu(null); }} sx={{ borderRadius: '8px', fontSize: '0.88rem', py: 1.2 }}>📅  Events</MenuItem>
-              {user && !isAdmin && <MenuItem onClick={() => { navigate('/dashboard'); setMobileMenu(null); }} sx={{ borderRadius: '8px', fontSize: '0.88rem', py: 1.2 }}>🎫  Dashboard</MenuItem>}
-              {user && isAdmin && <MenuItem onClick={() => { navigate('/admin'); setMobileMenu(null); }} sx={{ borderRadius: '8px', fontSize: '0.88rem', py: 1.2 }}>⚙️  Admin Panel</MenuItem>}
-              {!user && <MenuItem onClick={() => { navigate('/login'); setMobileMenu(null); }} sx={{ borderRadius: '8px', fontSize: '0.88rem', py: 1.2 }}>🔐  Sign in</MenuItem>}
-              {!user && <MenuItem onClick={() => { navigate('/register'); setMobileMenu(null); }} sx={{ borderRadius: '8px', fontSize: '0.88rem', py: 1.2 }}>✨  Register</MenuItem>}
-              {user && <Divider sx={{ my: 0.5 }} />}
-              {user && <MenuItem onClick={() => { handleLogout(); setMobileMenu(null); }} sx={{ borderRadius: '8px', color: '#b91c1c', fontSize: '0.88rem', py: 1.2 }}>↩  Sign out</MenuItem>}
-            </Menu>
-          </>
-        ) : (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <Button component={Link} to="/events" sx={linkSx('/events')}>Events</Button>
+          {/* Desktop Nav */}
+          <div className="hidden md:flex items-center gap-1">
+            <NavLink to="/events">Events</NavLink>
+            
             {user ? (
               <>
-                {!isAdmin && <Button component={Link} to="/dashboard" sx={linkSx('/dashboard')}>Dashboard</Button>}
-                {isAdmin && <Button component={Link} to="/admin" sx={linkSx('/admin')}>Admin</Button>}
-                <Box sx={{ ml: 1, height: 24, width: '1px', background: '#e8e5e0' }} />
-                <IconButton onClick={e => setAnchor(e.currentTarget)} sx={{ ml: 0.5 }}>
-                  <Avatar sx={{
-                    width: 34, height: 34, bgcolor: '#e8ebf5', color: '#2c3e7a',
-                    fontSize: '0.85rem', fontWeight: 700, fontFamily: '"Fraunces", serif',
-                    border: '2px solid #d8daf0', transition: 'all 0.2s',
-                    '&:hover': { borderColor: '#2c3e7a' }
-                  }}>
+                <NavLink to={isAdmin ? '/admin' : '/dashboard'}>{isAdmin ? 'Admin' : 'Dashboard'}</NavLink>
+                <div className="w-px h-6 bg-stone-200 mx-2" />
+                
+                {/* User Dropdown */}
+                <div className="relative">
+                  <motion.button 
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => setDropdownOpen(!dropdownOpen)}
+                    className="ml-2 flex items-center justify-center w-9 h-9 rounded-xl bg-indigo-100 text-indigo-800 font-display font-bold text-sm border-2 border-indigo-200 hover:border-indigo-800 transition-colors"
+                  >
                     {user.name?.charAt(0).toUpperCase()}
-                  </Avatar>
-                </IconButton>
-                <Menu anchorEl={anchor} open={Boolean(anchor)} onClose={() => setAnchor(null)}
-                  PaperProps={{ sx: { borderRadius: '12px', border: '1px solid #e8e5e0', boxShadow: '0 8px 32px rgba(0,0,0,.08)', mt: 1.5, minWidth: 200 } }}
-                  transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-                  anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}>
-                  <Box sx={{ px: 2.5, py: 2 }}>
-                    <Typography sx={{ fontSize: '0.88rem', fontWeight: 600, color: '#1a1815' }}>{user.name}</Typography>
-                    <Typography sx={{ fontSize: '0.76rem', color: '#9a958f', mt: 0.3 }}>{user.email}</Typography>
-                  </Box>
-                  <Divider sx={{ borderColor: '#e8e5e0' }} />
-                  <MenuItem onClick={() => { navigate(isAdmin ? '/admin' : '/dashboard'); setAnchor(null); }}
-                    sx={{ fontSize: '0.85rem', py: 1.2, px: 2.5 }}>
-                    Dashboard
-                  </MenuItem>
-                  <MenuItem onClick={handleLogout} sx={{ fontSize: '0.85rem', color: '#b91c1c', py: 1.2, px: 2.5 }}>
-                    Sign out
-                  </MenuItem>
-                </Menu>
+                  </motion.button>
+
+                  <AnimatePresence>
+                    {dropdownOpen && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.1 } }}
+                        className="absolute right-0 mt-3 w-56 rounded-2xl bg-white border border-stone-200 shadow-glass overflow-hidden"
+                      >
+                        <div className="px-5 py-4 border-b border-stone-100 bg-stone-50/50">
+                          <p className="text-sm font-semibold text-stone-800 truncate">{user.name}</p>
+                          <p className="text-xs text-stone-500 mt-1 truncate">{user.email}</p>
+                        </div>
+                        <div className="p-2">
+                          <Link 
+                            to={isAdmin ? '/admin' : '/dashboard'}
+                            onClick={() => setDropdownOpen(false)}
+                            className="flex items-center gap-3 px-3 py-2.5 text-sm text-stone-700 rounded-xl hover:bg-stone-50 transition-colors"
+                          >
+                            <LayoutDashboard className="w-4 h-4 text-stone-400" />
+                            Dashboard
+                          </Link>
+                          <button 
+                            onClick={handleLogout}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-rose-600 rounded-xl hover:bg-rose-50 transition-colors"
+                          >
+                            <LogOut className="w-4 h-4 text-rose-500" />
+                            Sign out
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
               </>
             ) : (
-              <>
-                <Button component={Link} to="/login" sx={linkSx('/login')}>Sign in</Button>
-                <Button component={Link} to="/register" sx={{
-                  background: 'linear-gradient(135deg, #2c3e7a 0%, #3d52a8 100%)',
-                  color: '#fff', fontSize: '0.85rem', fontWeight: 600, px: 2.5, py: 0.8,
-                  borderRadius: '8px', ml: 1,
-                  '&:hover': { background: 'linear-gradient(135deg, #1a2c5e 0%, #2c3e7a 100%)', transform: 'translateY(-1px)', boxShadow: '0 4px 12px rgba(44,62,122,.3)' }
-                }}>
-                  Get Started
-                </Button>
-              </>
+              <div className="flex items-center gap-2 ml-2">
+                <Link to="/login" className="px-5 py-2 text-sm font-semibold text-stone-700 hover:text-indigo-800 transition-colors">
+                  Sign in
+                </Link>
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Link to="/register" className="px-5 py-2.5 text-sm font-semibold text-white bg-gradient-to-br from-indigo-800 to-indigo-700 hover:from-indigo-900 hover:to-indigo-800 rounded-xl shadow-glow-indigo transition-all">
+                    Get Started
+                  </Link>
+                </motion.div>
+              </div>
             )}
-          </Box>
+          </div>
+
+          {/* Mobile Menu Button */}
+          <div className="md:hidden flex items-center">
+            <motion.button 
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setMobileMenuOpen(true)}
+              className="p-2 text-stone-600 hover:text-indigo-800"
+            >
+              <Menu className="w-6 h-6" />
+            </motion.button>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Drawer */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setMobileMenuOpen(false)}
+              className="fixed inset-0 bg-stone-900/20 backdrop-blur-sm z-40 md:hidden"
+            />
+            <motion.div 
+              initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed inset-y-0 right-0 w-4/5 max-w-sm bg-white shadow-2xl z-50 md:hidden flex flex-col"
+            >
+              <div className="flex justify-between items-center p-4 border-b border-stone-100">
+                <span className="font-display font-bold text-lg text-stone-800">Menu</span>
+                <motion.button whileTap={{ scale: 0.9 }} onClick={() => setMobileMenuOpen(false)} className="p-2 bg-stone-100 rounded-full text-stone-500">
+                  <X className="w-5 h-5" />
+                </motion.button>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                <Link to="/events" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 p-3 rounded-xl text-stone-700 hover:bg-indigo-50 hover:text-indigo-800 transition-colors">
+                  <Calendar className="w-5 h-5 text-indigo-400" />
+                  <span className="font-medium">Events</span>
+                </Link>
+                
+                {user ? (
+                  <>
+                    <Link to={isAdmin ? '/admin' : '/dashboard'} onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 p-3 rounded-xl text-stone-700 hover:bg-indigo-50 hover:text-indigo-800 transition-colors">
+                      <LayoutDashboard className="w-5 h-5 text-indigo-400" />
+                      <span className="font-medium">{isAdmin ? 'Admin Panel' : 'Dashboard'}</span>
+                    </Link>
+                    <div className="h-px bg-stone-100 my-4" />
+                    <div className="px-3 pb-2">
+                      <p className="text-sm font-semibold text-stone-800">{user.name}</p>
+                      <p className="text-xs text-stone-500">{user.email}</p>
+                    </div>
+                    <button onClick={handleLogout} className="w-full flex items-center gap-3 p-3 rounded-xl text-rose-600 hover:bg-rose-50 transition-colors">
+                      <LogOut className="w-5 h-5 text-rose-500" />
+                      <span className="font-medium">Sign out</span>
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="h-px bg-stone-100 my-4" />
+                    <Link to="/login" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3 p-3 rounded-xl text-stone-700 hover:bg-indigo-50 hover:text-indigo-800 transition-colors">
+                      <span className="font-medium">Sign in</span>
+                    </Link>
+                    <Link to="/register" onClick={() => setMobileMenuOpen(false)} className="flex items-center justify-center p-3 mt-2 rounded-xl text-white bg-indigo-800 hover:bg-indigo-900 font-medium transition-colors">
+                      Get Started
+                    </Link>
+                  </>
+                )}
+              </div>
+            </motion.div>
+          </>
         )}
-      </Toolbar>
-    </AppBar>
+      </AnimatePresence>
+    </nav>
   );
 };
 

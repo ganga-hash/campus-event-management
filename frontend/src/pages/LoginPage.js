@@ -1,17 +1,10 @@
 import React, { useState } from 'react';
-import { Box, Typography, TextField, Button, Alert } from '@mui/material';
 import { Link, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { login } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-
-const inputSx = {
-  '& .MuiOutlinedInput-root': {
-    borderRadius: '10px', background: '#faf9f7', fontSize: '0.88rem',
-    '& fieldset': { borderColor: '#e8e5e0' },
-    '&:hover fieldset': { borderColor: '#c0bdb7' },
-    '&.Mui-focused fieldset': { borderColor: '#2c3e7a', borderWidth: '1.5px' },
-  }
-};
+import Toast from '../components/ui/Toast';
+import Button from '../components/ui/Button';
 
 const LoginPage = () => {
   const [form, setForm] = useState({ email: '', password: '' });
@@ -27,95 +20,97 @@ const LoginPage = () => {
       loginUser(res.data.token, res.data.user);
       navigate(res.data.user.role === 'admin' ? '/admin' : '/dashboard');
     } catch (err) {
-      console.error('Login error:', err);
-      if (err.response) {
-        setError(err.response.data?.message || `Server error (${err.response.status})`);
-      } else if (err.request) {
-        setError('Cannot connect to server. Please check if the backend is running.');
-      } else {
-        setError('Login failed. Please try again.');
-      }
+      if (err.response) setError(err.response.data?.message || `Server error (${err.response.status})`);
+      else if (err.request) setError('Cannot connect to server. Check backend.');
+      else setError('Login failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    finally { setLoading(false); }
   };
 
   return (
-    <Box sx={{ minHeight: 'calc(100vh - 64px)', display: 'flex' }}>
+    <div className="min-h-[calc(100vh-64px)] flex bg-stone-50">
+      <Toast show={!!error} type="error" message={error} onClose={() => setError('')} />
+
       {/* Left decorative panel */}
-      <Box sx={{
-        display: { xs: 'none', md: 'flex' }, flex: 1,
-        background: 'linear-gradient(135deg, #1a1815 0%, #2c3e7a 60%, #3d52a8 100%)',
-        alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden'
-      }}>
-        <Box sx={{
-          position: 'absolute', inset: 0, opacity: 0.06,
-          backgroundImage: 'radial-gradient(circle at 2px 2px, #fff 1px, transparent 0)',
-          backgroundSize: '40px 40px',
-        }} />
-        <Box sx={{ textAlign: 'center', position: 'relative', zIndex: 1, px: 5 }}>
-          <Typography sx={{ fontSize: '3rem', mb: 2 }}>🎉</Typography>
-          <Typography sx={{ fontFamily: '"Fraunces", serif', fontSize: '2rem', fontWeight: 600, color: '#fff', mb: 1.5 }}>
-            Welcome to FestZone
-          </Typography>
-          <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.5)', lineHeight: 1.7, maxWidth: 340 }}>
+      <div className="hidden md:flex flex-1 bg-gradient-to-br from-indigo-900 via-indigo-800 to-indigo-900 items-center justify-center relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_2px_2px,rgba(255,255,255,0.06)_1px,transparent_0)] bg-[size:40px_40px]" />
+        
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.2 }}
+          className="text-center relative z-10 px-12"
+        >
+          <span className="text-5xl block mb-6">🎉</span>
+          <h1 className="font-display text-4xl font-bold text-white mb-4">Welcome to FestZone</h1>
+          <p className="text-lg text-indigo-200 max-w-sm mx-auto leading-relaxed">
             Your one-stop platform for college fest events, registrations, and volunteering.
-          </Typography>
-        </Box>
-      </Box>
+          </p>
+        </motion.div>
+      </div>
 
       {/* Right form panel */}
-      <Box sx={{
-        flex: { xs: 1, md: '0 0 480px' }, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        p: { xs: 3, sm: 5 }, background: '#faf9f6'
-      }}>
-        <Box sx={{ width: '100%', maxWidth: 380 }}>
-          <Typography sx={{ fontFamily: '"Fraunces", serif', fontSize: '1.6rem', fontWeight: 600, color: '#1a1815', mb: '6px' }}>
-            Welcome back
-          </Typography>
-          <Typography sx={{ fontSize: '0.88rem', color: '#9a958f', mb: 4 }}>
-            Sign in to your FestZone account
-          </Typography>
+      <div className="flex-1 md:flex-none md:w-[480px] lg:w-[560px] flex items-center justify-center p-6 sm:p-12">
+        <motion.div 
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5, type: 'spring', damping: 25 }}
+          className="w-full max-w-md"
+        >
+          <div className="mb-10 text-center sm:text-left">
+            <h2 className="font-display text-3xl font-bold text-stone-900 mb-2">Welcome back</h2>
+            <p className="text-stone-500">Sign in to your FestZone account</p>
+          </div>
 
-          {error && (
-            <Alert severity="error" sx={{ mb: 2.5, borderRadius: '10px', border: '1px solid #fecaca' }}>
-              {error}
-            </Alert>
-          )}
-
-          <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-            <Box>
-              <Typography sx={{ fontSize: '0.76rem', fontWeight: 600, color: '#5a5550', mb: '8px' }}>Email</Typography>
-              <TextField type="email" size="small" fullWidth value={form.email}
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="block text-sm font-semibold text-stone-700 mb-2">College Email</label>
+              <input 
+                type="email" 
+                required 
+                value={form.email}
                 onChange={e => setForm({ ...form, email: e.target.value })}
-                placeholder="you@college.edu" required sx={inputSx} />
-            </Box>
-            <Box>
-              <Typography sx={{ fontSize: '0.76rem', fontWeight: 600, color: '#5a5550', mb: '8px' }}>Password</Typography>
-              <TextField type="password" size="small" fullWidth value={form.password}
+                placeholder="you@college.edu" 
+                className="w-full bg-white border border-stone-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 transition-all font-medium placeholder:text-stone-400"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-semibold text-stone-700 mb-2">Password</label>
+              <input 
+                type="password" 
+                required 
+                value={form.password}
                 onChange={e => setForm({ ...form, password: e.target.value })}
-                placeholder="••••••••" required sx={inputSx} />
-            </Box>
-            <Button type="submit" fullWidth disabled={loading} sx={{
-              py: 1.4, mt: 0.5, fontSize: '0.88rem', fontWeight: 600,
-              background: 'linear-gradient(135deg, #2c3e7a, #3d52a8)', color: '#fff',
-              borderRadius: '10px', textTransform: 'none',
-              boxShadow: '0 2px 8px rgba(44,62,122,.25)',
-              '&:hover': { background: 'linear-gradient(135deg, #243368, #354897)' },
-              '&:disabled': { background: '#c0bdb7', color: '#fff' }
-            }}>
-              {loading ? 'Signing in…' : 'Sign In'}
-            </Button>
-          </Box>
+                placeholder="••••••••" 
+                className="w-full bg-white border border-stone-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 transition-all font-medium placeholder:text-stone-400"
+              />
+            </div>
 
-          <Typography sx={{ fontSize: '0.84rem', color: '#9a958f', textAlign: 'center', mt: 3.5 }}>
+            <Button 
+              type="submit" 
+              disabled={loading} 
+              className="w-full py-3.5 mt-4 text-[15px]"
+            >
+              {loading ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                  Signing in...
+                </div>
+              ) : 'Sign In'}
+            </Button>
+          </form>
+
+          <p className="text-center text-sm font-medium text-stone-500 mt-10">
             New here?{' '}
-            <Box component={Link} to="/register" sx={{ color: '#2c3e7a', fontWeight: 600, textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
+            <Link to="/register" className="text-indigo-600 hover:text-indigo-800 transition-colors">
               Create account
-            </Box>
-          </Typography>
-        </Box>
-      </Box>
-    </Box>
+            </Link>
+          </p>
+        </motion.div>
+      </div>
+    </div>
   );
 };
 

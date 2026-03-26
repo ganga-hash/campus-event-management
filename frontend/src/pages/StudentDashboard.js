@@ -1,389 +1,199 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Grid, Chip, CircularProgress, Alert, Button, Dialog, DialogTitle, DialogContent, DialogActions, IconButton, Tooltip, useMediaQuery } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
-import { Delete, Warning } from '@mui/icons-material';
-import { getMyRegistrations, getMyAssignments, deleteRegistration, deleteMyAssignment } from '../services/api';
+import { useNavigate, Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Calendar, Users, Ticket, CheckCircle2, X } from 'lucide-react';
+import { getMyRegistrations, getMyAssignments, cancelRegistration } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { formatRupees } from '../utils/currency';
+import SkeletonRow from '../components/ui/SkeletonRow';
+import EmptyState from '../components/ui/EmptyState';
+import Toast from '../components/ui/Toast';
+import Modal from '../components/ui/Modal';
+import Button from '../components/ui/Button';
 
-const CAT_COLORS = { Music: '#be185d', Dance: '#7c3aed', Tech: '#1d4ed8', Art: '#b45309', Sports: '#15803d', Drama: '#b91c1c', Literary: '#0e7490', Photography: '#6b21a8', General: '#2c3e7a' };
-
-const Sidebar = ({ activePanel, setPanel }) => {
-  const { user, logoutUser } = useAuth();
-  const navigate = useNavigate();
-  const navItems = [
-    { id: 'overview', icon: '◻', label: 'Overview', group: 'Overview' },
-    { id: 'events', icon: '🎫', label: 'My Events', group: 'Participant' },
-    { id: 'browse', icon: '📅', label: 'Browse & Register', group: 'Participant' },
-    { id: 'shifts', icon: '🙋', label: 'My Shifts', group: 'Volunteer' },
-    { id: 'apply', icon: '➕', label: 'Apply to Volunteer', group: 'Volunteer' },
-  ];
-  const groups = ['Overview', 'Participant', 'Volunteer'];
-
-  return (
-    <Box sx={{
-      background: '#fff', borderRight: '1px solid #e8e5e0', width: 240,
-      minHeight: 'calc(100vh - 64px)', position: 'sticky', top: 64, flexShrink: 0,
-      display: { xs: 'none', md: 'flex' }, flexDirection: 'column',
-      boxShadow: '1px 0 8px rgba(0,0,0,.03)'
-    }}>
-      <Box sx={{ p: '24px 20px', borderBottom: '1px solid #e8e5e0' }}>
-        <Box sx={{
-          width: 44, height: 44, borderRadius: '12px',
-          background: 'linear-gradient(135deg, #e8ebf5, #d4d8f0)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontFamily: '"Fraunces", serif', fontSize: '1.2rem', fontWeight: 600, color: '#2c3e7a', mb: 1.5
-        }}>
-          {user?.name?.charAt(0).toUpperCase()}
-        </Box>
-        <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: '#1a1815', mb: '3px' }}>{user?.name}</Typography>
-        <Typography sx={{ fontSize: '0.74rem', color: '#9a958f' }}>{user?.email}</Typography>
-        <Box sx={{
-          display: 'inline-flex', alignItems: 'center', gap: '5px', mt: '10px',
-          px: '10px', py: '4px', borderRadius: '99px',
-          background: 'linear-gradient(135deg, #e8ebf5, #f0f0fb)',
-          fontSize: '0.7rem', fontWeight: 600, color: '#2c3e7a'
-        }}>👤 Student</Box>
-      </Box>
-      <Box sx={{ p: '16px 14px', flex: 1 }}>
-        {groups.map(g => (
-          <Box key={g}>
-            <Typography sx={{ fontSize: '0.66rem', fontWeight: 600, letterSpacing: '.1em', textTransform: 'uppercase', color: '#b0aba5', px: '10px', mb: 1, mt: g === 'Overview' ? 0 : 2.5 }}>{g}</Typography>
-            {navItems.filter(n => n.group === g).map(n => (
-              <Box key={n.id} component="button" onClick={() => setPanel(n.id)}
-                sx={{
-                  display: 'flex', alignItems: 'center', gap: '10px', px: '12px', py: '9px',
-                  borderRadius: '10px', fontSize: '0.84rem', fontWeight: activePanel === n.id ? 600 : 500,
-                  color: activePanel === n.id ? '#2c3e7a' : '#5a5550', cursor: 'pointer', border: 'none',
-                  background: activePanel === n.id ? 'linear-gradient(135deg, #e8ebf5, #f0f0fb)' : 'transparent',
-                  fontFamily: 'inherit', width: '100%', textAlign: 'left', mb: '3px', transition: 'all .2s',
-                  '&:hover': { background: activePanel === n.id ? 'linear-gradient(135deg, #e8ebf5, #f0f0fb)' : '#f5f3ef', color: '#1a1815' }
-                }}>
-                <span style={{ fontSize: '0.95rem', width: 22, textAlign: 'center' }}>{n.icon}</span>{n.label}
-              </Box>
-            ))}
-          </Box>
-        ))}
-        <Box component="button" onClick={() => { logoutUser(); navigate('/'); }}
-          sx={{
-            display: 'flex', alignItems: 'center', gap: '10px', px: '12px', py: '9px',
-            borderRadius: '10px', fontSize: '0.84rem', fontWeight: 500, color: '#9a958f',
-            cursor: 'pointer', border: 'none', background: 'transparent', fontFamily: 'inherit',
-            width: '100%', textAlign: 'left', mt: 3, transition: 'all .2s',
-            '&:hover': { background: '#fee2e2', color: '#b91c1c' }
-          }}>
-          <span style={{ width: 22, textAlign: 'center' }}>↩</span>Sign out
-        </Box>
-      </Box>
-    </Box>
-  );
-};
-
-const StatCard = ({ icon, value, label, color = '#2c3e7a' }) => (
-  <Box sx={{
-    background: '#fff', borderRadius: '14px', border: '1px solid #e8e5e0',
-    p: '22px', display: 'flex', flexDirection: 'column', gap: '8px',
-    transition: 'all .2s', '&:hover': { borderColor: '#d0cdc7', boxShadow: '0 2px 8px rgba(0,0,0,.04)' }
-  }}>
-    <Box sx={{
-      width: 38, height: 38, borderRadius: '10px', background: `${color}12`,
-      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem'
-    }}>{icon}</Box>
-    <Typography sx={{ fontFamily: '"Fraunces", serif', fontSize: '1.8rem', fontWeight: 600, color: '#1a1815', lineHeight: 1 }}>{value}</Typography>
-    <Typography sx={{ fontSize: '0.78rem', color: '#9a958f', fontWeight: 500 }}>{label}</Typography>
-  </Box>
-);
-
-const ItemRow = ({ name, meta, badge, badgeSx, sub, onDelete }) => (
-  <Box sx={{
-    background: '#faf9f7', borderRadius: '12px', border: '1px solid #e8e5e0',
-    p: { xs: '12px 14px', sm: '16px 18px' }, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
-    gap: { xs: 1, sm: 2 }, mb: 1.5, transition: 'all .2s',
-    '&:hover': { borderColor: '#d0cdc7', background: '#f5f3ef' }
-  }}>
-    <Box sx={{ flex: 1, minWidth: 0 }}>
-      <Typography sx={{ fontSize: { xs: '0.82rem', sm: '0.9rem' }, fontWeight: 600, color: '#1a1815', mb: '5px', wordBreak: 'break-word' }}>{name}</Typography>
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
-        {meta.map((m, i) => <React.Fragment key={i}>{i > 0 && <Box sx={{ width: 3, height: 3, borderRadius: '50%', background: '#d0cdc7' }} />}<Typography sx={{ fontSize: { xs: '0.72rem', sm: '0.78rem' }, color: '#9a958f' }}>{m}</Typography></React.Fragment>)}
-      </Box>
-      {sub && <Typography sx={{ fontSize: { xs: '0.72rem', sm: '0.78rem' }, color: '#9a958f', mt: '6px' }}>{sub}</Typography>}
-    </Box>
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
-      <Box sx={{ fontSize: { xs: '0.64rem', sm: '0.7rem' }, fontWeight: 600, px: { xs: '8px', sm: '10px' }, py: '4px', borderRadius: '99px', whiteSpace: 'nowrap', ...badgeSx }}>{badge}</Box>
-      {onDelete && (
-        <Tooltip title="Delete" arrow>
-          <IconButton onClick={onDelete} size="small" sx={{
-            color: '#c0bdb7', width: 30, height: 30,
-            '&:hover': { color: '#b91c1c', background: '#fee2e2' }
-          }}>
-            <Delete sx={{ fontSize: 15 }} />
-          </IconButton>
-        </Tooltip>
-      )}
-    </Box>
-  </Box>
-);
-
-const EmptyState = ({ icon, title, sub, btnLabel, onBtn }) => (
-  <Box sx={{
-    textAlign: 'center', py: 8, px: 3, color: '#9a958f',
-    background: '#fff', borderRadius: '14px', border: '1px solid #e8e5e0'
-  }}>
-    <Typography sx={{ fontSize: '3rem', mb: 2, opacity: .5 }}>{icon}</Typography>
-    <Typography sx={{ fontWeight: 600, color: '#1a1815', mb: '6px', fontSize: '1rem' }}>{title}</Typography>
-    <Typography sx={{ fontSize: '0.86rem', mb: 3 }}>{sub}</Typography>
-    {btnLabel && <Button onClick={onBtn} sx={{
-      background: 'linear-gradient(135deg, #2c3e7a, #3d52a8)', color: '#fff',
-      fontSize: '0.84rem', px: 3, py: 1.1, borderRadius: '10px', fontWeight: 600,
-      textTransform: 'none', boxShadow: '0 2px 8px rgba(44,62,122,.2)',
-      '&:hover': { background: 'linear-gradient(135deg, #243368, #354897)' }
-    }}>{btnLabel}</Button>}
-  </Box>
-);
+const TABS = [
+  { id: 'registrations', label: 'My Events', icon: Ticket },
+  { id: 'volunteer', label: 'Volunteer Roles', icon: Users },
+  { id: 'past', label: 'Past Events', icon: Calendar }
+];
 
 const StudentDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [panel, setPanel] = useState('overview');
+  const [activeTab, setActiveTab] = useState('registrations');
   const [regs, setRegs] = useState([]);
   const [vols, setVols] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [alert, setAlert] = useState(null);
-  const [deleteDialog, setDeleteDialog] = useState({ open: false, type: '', id: null, name: '' });
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const [cancelModal, setCancelModal] = useState({ open: false, regId: null, eventName: '' });
 
-  useEffect(() => {
-    Promise.all([getMyRegistrations(), getMyAssignments()])
-      .then(([r, v]) => { setRegs(r.data); setVols(v.data); })
-      .catch(console.error).finally(() => setLoading(false));
-  }, []);
+  const showToast = (type, message) => setToast({ show: true, type, message });
 
-  const showAlert = (type, msg) => { setAlert({ type, msg }); setTimeout(() => setAlert(null), 4000); };
-
-  const openDeleteDialog = (type, id, name) => setDeleteDialog({ open: true, type, id, name });
-
-  const handleDelete = async () => {
-    const { type, id, name } = deleteDialog;
-    setDeleteDialog({ open: false, type: '', id: null, name: '' });
+  const loadData = async () => {
+    setLoading(true);
     try {
-      if (type === 'registration') {
-        await deleteRegistration(id);
-        setRegs(prev => prev.filter(r => r.registration_id !== id));
-        showAlert('success', `Removed registration for "${name}"`);
-      } else {
-        await deleteMyAssignment(id);
-        setVols(prev => prev.filter(v => v.assignment_id !== id));
-        showAlert('success', `Removed volunteer shift for "${name}"`);
-      }
+      const [r, v] = await Promise.all([getMyRegistrations(), getMyAssignments()]);
+      setRegs(r.data || []);
+      setVols(v.data || []);
     } catch (err) {
-      showAlert('error', err.response?.data?.message || 'Delete failed');
+      showToast('error', 'Failed to load dashboard data');
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (loading) return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 12 }}>
-      <CircularProgress sx={{ color: '#2c3e7a', mb: 2 }} />
-      <Typography sx={{ fontSize: '0.85rem', color: '#9a958f' }}>Loading your dashboard...</Typography>
-    </Box>
-  );
+  useEffect(() => { loadData(); }, []);
 
-  const confirmed = regs.filter(r => r.status === 'confirmed').length;
+  const handleCancel = async () => {
+    try {
+      await cancelRegistration(cancelModal.regId);
+      setRegs(regs.map(r => r.registration_id === cancelModal.regId ? { ...r, status: 'cancelled' } : r));
+      setCancelModal({ open: false, regId: null, eventName: '' });
+      showToast('success', 'Registration cancelled successfully');
+    } catch (err) { showToast('error', 'Cancellation failed'); }
+  };
+
+  const activeRegs = regs.filter(r => r.status !== 'cancelled' && r.event_status !== 'completed');
+  const pastRegs = regs.filter(r => r.event_status === 'completed' || r.status === 'cancelled');
+
+  const StatCard = ({ icon: Icon, label, value, color }) => (
+    <motion.div whileHover={{ scale: 1.02 }} className="bg-white rounded-3xl p-6 border border-stone-200 shadow-sm flex items-center gap-4">
+      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 ${color.bg} ${color.text}`}>
+        <Icon className="w-7 h-7" />
+      </div>
+      <div>
+        <p className="text-sm font-semibold text-stone-500 mb-1 tracking-wide">{label}</p>
+        <p className="text-3xl font-display font-bold text-stone-900">{value}</p>
+      </div>
+    </motion.div>
+  );
 
   return (
-    <Box sx={{ display: 'flex', minHeight: 'calc(100vh - 64px)', background: '#faf9f6' }}>
-      <Sidebar activePanel={panel} setPanel={setPanel} />
-      <Box sx={{ flex: 1, p: { xs: 2, sm: 3, md: 5 }, maxWidth: 960 }}>
+    <div className="min-h-[calc(100vh-64px)] bg-stone-50 flex flex-col md:flex-row">
+      <Toast {...toast} onClose={() => setToast({ ...toast, show: false })} />
 
-        {/* Mobile nav tabs */}
-        <Box sx={{
-          display: { xs: 'flex', md: 'none' }, gap: 1, mb: 2.5,
-          overflow: 'auto', pb: 0.5, mx: -0.5, px: 0.5,
-          '&::-webkit-scrollbar': { display: 'none' }
-        }}>
-          {[
-            { id: 'overview', icon: '◻', label: 'Overview' },
-            { id: 'events', icon: '🎫', label: 'Events' },
-            { id: 'browse', icon: '📅', label: 'Browse' },
-            { id: 'shifts', icon: '🙋', label: 'Shifts' },
-            { id: 'apply', icon: '➕', label: 'Apply' },
-          ].map(n => (
-            <Box key={n.id} component="button" onClick={() => setPanel(n.id)}
-              sx={{
-                display: 'flex', alignItems: 'center', gap: '5px',
-                px: '12px', py: '7px', borderRadius: '10px', flexShrink: 0,
-                fontSize: '0.76rem', fontWeight: panel === n.id ? 600 : 500,
-                color: panel === n.id ? '#2c3e7a' : '#5a5550',
-                cursor: 'pointer', border: panel === n.id ? '1.5px solid #2c3e7a' : '1px solid #e8e5e0',
-                background: panel === n.id ? '#e8ebf5' : '#fff',
-                fontFamily: 'inherit', whiteSpace: 'nowrap', transition: 'all .2s',
-                '&:hover': { borderColor: '#2c3e7a', background: '#f0f0fb' }
-              }}>
-              <span style={{ fontSize: '0.82rem' }}>{n.icon}</span>{n.label}
-            </Box>
+      {/* Sidebar Desktop */}
+      <div className="hidden md:flex flex-col w-72 border-r border-stone-200 bg-white sticky top-16 h-[calc(100vh-64px)] p-6 z-10">
+        <div className="mb-8">
+          <h2 className="text-2xl font-display font-bold text-stone-900 mb-2">Dashboard</h2>
+          <p className="text-stone-500 text-sm">Welcome back, {user?.name?.split(' ')[0]}</p>
+        </div>
+        <div className="space-y-2 flex-1">
+          {TABS.map(tab => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors relative group font-semibold text-sm ${isActive ? 'text-indigo-800' : 'text-stone-600 hover:bg-stone-50'}`}>
+                {isActive && <motion.div layoutId="sidebar-active" className="absolute inset-0 bg-indigo-50 border border-indigo-100 rounded-xl" />}
+                <tab.icon className={`w-5 h-5 relative z-10 ${isActive ? 'text-indigo-600' : 'text-stone-400 group-hover:text-stone-600'}`} />
+                <span className="relative z-10">{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Mobile Tabs */}
+      <div className="md:hidden bg-white border-b border-stone-200 sticky top-16 z-30 px-4 py-3 overflow-x-auto scrollbar-none">
+        <div className="flex gap-2">
+          {TABS.map(tab => (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${activeTab === tab.id ? 'bg-indigo-50 text-indigo-800 border border-indigo-100' : 'bg-stone-50 text-stone-600 border border-stone-200'}`}>
+              {tab.label}
+            </button>
           ))}
-        </Box>
+        </div>
+      </div>
 
-        {/* Alert */}
-        {alert && (
-          <Alert severity={alert.type} sx={{
-            mb: 3, borderRadius: '12px', border: '1px solid',
-            borderColor: alert.type === 'success' ? '#bbf7d0' : '#fecaca',
-          }} onClose={() => setAlert(null)}>
-            {alert.msg}
-          </Alert>
-        )}
+      {/* Main Content */}
+      <div className="flex-1 p-4 sm:p-6 lg:p-8 max-w-5xl">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-6 mb-8 lg:mb-10">
+          <StatCard icon={Ticket} label="Upcoming Events" value={activeRegs.length} color={{ bg: 'bg-indigo-50', text: 'text-indigo-600' }} />
+          <StatCard icon={Users} label="Volunteer Roles" value={vols.length} color={{ bg: 'bg-emerald-50', text: 'text-emerald-600' }} />
+          <StatCard icon={CheckCircle2} label="Completed" value={pastRegs.length} color={{ bg: 'bg-stone-100', text: 'text-stone-600' }} />
+        </div>
 
-        {/* OVERVIEW */}
-        {panel === 'overview' && (
-          <Box>
-            <Typography sx={{ fontFamily: '"Fraunces", serif', fontSize: { xs: '1.4rem', md: '1.6rem' }, fontWeight: 600, color: '#1a1815', mb: '6px' }}>
-              Hey, {user?.name?.split(' ')[0]} 👋
-            </Typography>
-            <Typography sx={{ fontSize: '0.88rem', color: '#9a958f', mb: 4 }}>
-              Here's what's happening with your FestZone activity
-            </Typography>
-            <Grid container spacing={2} sx={{ mb: 4 }}>
-              <Grid item xs={6} sm={3}><StatCard icon="🎫" value={regs.length} label="Events Registered" color="#2c3e7a" /></Grid>
-              <Grid item xs={6} sm={3}><StatCard icon="🙋" value={vols.length} label="Volunteer Shifts" color="#1a5c3a" /></Grid>
-              <Grid item xs={6} sm={3}><StatCard icon="✅" value={confirmed} label="Confirmed" color="#15803d" /></Grid>
-              <Grid item xs={6} sm={3}><StatCard icon="📅" value="3" label="Days to Fest" color="#b45309" /></Grid>
-            </Grid>
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
-                <Box sx={{ background: '#fff', borderRadius: '14px', border: '1px solid #e8e5e0', overflow: 'hidden' }}>
-                  <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid #e8e5e0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: '#1a1815' }}>Recent Registrations</Typography>
-                    <Button onClick={() => setPanel('events')} sx={{ fontSize: '0.78rem', color: '#2c3e7a', fontWeight: 600, p: 0, minWidth: 0, textTransform: 'none', '&:hover': { background: 'transparent', transform: 'none' } }}>View all →</Button>
-                  </Box>
-                  <Box sx={{ p: 2 }}>
-                    {regs.length ? regs.slice(-3).reverse().map((r, i) => (
-                      <ItemRow key={i} name={r.event_name} meta={[r.date ? new Date(r.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '', r.venue || '']} badge="✓ Confirmed" badgeSx={{ background: '#dcfce7', color: '#15803d' }} />
-                    )) : <Box sx={{ py: 3, textAlign: 'center', color: '#9a958f', fontSize: '0.86rem' }}>No registrations yet</Box>}
-                  </Box>
-                </Box>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Box sx={{ background: '#fff', borderRadius: '14px', border: '1px solid #e8e5e0', overflow: 'hidden' }}>
-                  <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid #e8e5e0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography sx={{ fontSize: '0.9rem', fontWeight: 600, color: '#1a1815' }}>Volunteer Shifts</Typography>
-                    <Button onClick={() => setPanel('shifts')} sx={{ fontSize: '0.78rem', color: '#2c3e7a', fontWeight: 600, p: 0, minWidth: 0, textTransform: 'none', '&:hover': { background: 'transparent', transform: 'none' } }}>View all →</Button>
-                  </Box>
-                  <Box sx={{ p: 2 }}>
-                    {vols.length ? vols.slice(-3).reverse().map((v, i) => (
-                      <ItemRow key={i} name={v.event_name} meta={[v.role || 'Volunteer', v.date ? new Date(v.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '']} badge="Pending" badgeSx={{ background: '#fef3c7', color: '#92400e' }} />
-                    )) : <Box sx={{ py: 3, textAlign: 'center', color: '#9a958f', fontSize: '0.86rem' }}>No shifts yet</Box>}
-                  </Box>
-                </Box>
-              </Grid>
-            </Grid>
-          </Box>
-        )}
+        <div className="bg-white rounded-3xl border border-stone-200 shadow-sm overflow-hidden min-h-[400px]">
+          <div className="px-6 py-5 border-b border-stone-100 bg-stone-50/50">
+            <h3 className="font-display font-semibold text-lg text-stone-800">
+              {TABS.find(t => t.id === activeTab)?.label}
+            </h3>
+          </div>
+          
+          <AnimatePresence mode="wait">
+            <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }} className="p-0">
+              {loading ? (
+                <div className="w-full">
+                  <table className="w-full"><tbody>{[...Array(3)].map((_, i) => <SkeletonRow key={i} columns={4} />)}</tbody></table>
+                </div>
+              ) : activeTab === 'registrations' && activeRegs.length === 0 ? (
+                <EmptyState icon={Ticket} title="No upcoming events" description="You haven't registered for any upcoming events yet." action={<Button onClick={() => navigate('/events')}>Browse Events</Button>} />
+              ) : activeTab === 'volunteer' && vols.length === 0 ? (
+                <EmptyState icon={Users} title="No volunteer roles" description="You haven't applied for any volunteer roles yet." action={<Button onClick={() => navigate('/events')}>Find Opportunities</Button>} />
+              ) : activeTab === 'past' && pastRegs.length === 0 ? (
+                <EmptyState icon={Calendar} title="No past events" description="Your cancelled and completed events will appear here." />
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-white border-b border-stone-100 text-xs uppercase tracking-wider text-stone-400">
+                        <th className="px-6 py-4 font-semibold">Event</th>
+                        <th className="px-6 py-4 font-semibold">Date</th>
+                        <th className="px-6 py-4 font-semibold">{activeTab === 'volunteer' ? 'Role' : 'Status'}</th>
+                        <th className="px-6 py-4 font-semibold text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100">
+                      {(activeTab === 'registrations' ? activeRegs : activeTab === 'volunteer' ? vols : pastRegs).map(item => (
+                        <tr key={item.registration_id || item.assignment_id} className="hover:bg-stone-50 transition-colors group">
+                          <td className="px-6 py-4">
+                            <Link to={`/events/${item.event_id}`} className="font-semibold text-stone-800 hover:text-indigo-600 transition-colors line-clamp-1">{item.event_name}</Link>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-stone-600 whitespace-nowrap">
+                            {new Date(item.event_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </td>
+                          <td className="px-6 py-4">
+                            {activeTab === 'volunteer' ? (
+                              <span className="inline-flex px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wide bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">
+                                {item.role}
+                              </span>
+                            ) : (
+                              <span className={`inline-flex px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wide border whitespace-nowrap ${
+                                item.status === 'registered' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                                item.status === 'cancelled' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                                'bg-stone-50 text-stone-500 border-stone-200'
+                              }`}>
+                                {item.status}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-right whitespace-nowrap">
+                            {activeTab === 'registrations' && item.status === 'registered' ? (
+                              <button onClick={() => setCancelModal({ open: true, regId: item.registration_id, eventName: item.event_name })} className="text-sm font-semibold text-rose-600 hover:text-rose-800 transition-colors md:opacity-0 md:group-hover:opacity-100">
+                                Cancel
+                              </button>
+                            ) : (
+                              <Link to={`/events/${item.event_id}`} className="text-sm font-semibold text-indigo-600 hover:text-indigo-800 transition-colors">
+                                View
+                              </Link>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </div>
 
-        {/* MY EVENTS (with delete) */}
-        {panel === 'events' && (
-          <Box>
-            <Typography sx={{ fontFamily: '"Fraunces", serif', fontSize: { xs: '1.4rem', md: '1.6rem' }, fontWeight: 600, color: '#1a1815', mb: '6px' }}>My Events</Typography>
-            <Typography sx={{ fontSize: '0.88rem', color: '#9a958f', mb: 3.5 }}>
-              All events you've signed up for as a participant ({regs.length})
-            </Typography>
-            {regs.length ? regs.map((r, i) => (
-              <ItemRow key={i} name={r.event_name}
-                meta={[r.category || '', r.date ? new Date(r.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '', r.time ? String(r.time).slice(0, 5) : '', `📍 ${r.venue || ''}`]}
-                badge={r.status || 'confirmed'} badgeSx={{ background: '#dcfce7', color: '#15803d' }}
-                sub={r.prize_pool && r.prize_pool !== 'N/A' ? `🏆 ${formatRupees(r.prize_pool)}` : undefined}
-                onDelete={() => openDeleteDialog('registration', r.registration_id, r.event_name)} />
-            )) : <EmptyState icon="📅" title="No registrations yet" sub="Browse events and register to see them here" btnLabel="Browse Events →" onBtn={() => navigate('/events')} />}
-          </Box>
-        )}
-
-        {/* BROWSE */}
-        {panel === 'browse' && (
-          <Box>
-            <Typography sx={{ fontFamily: '"Fraunces", serif', fontSize: { xs: '1.4rem', md: '1.6rem' }, fontWeight: 600, color: '#1a1815', mb: '6px' }}>Browse & Register</Typography>
-            <Typography sx={{ fontSize: '0.88rem', color: '#9a958f', mb: 3.5 }}>Discover events and join as a participant or volunteer</Typography>
-            <Button onClick={() => navigate('/events')} sx={{
-              background: 'linear-gradient(135deg, #2c3e7a, #3d52a8)', color: '#fff',
-              px: 4, py: 1.3, borderRadius: '10px', fontWeight: 600, textTransform: 'none',
-              boxShadow: '0 2px 8px rgba(44,62,122,.2)',
-              '&:hover': { background: 'linear-gradient(135deg, #243368, #354897)' }
-            }}>Browse All Events →</Button>
-          </Box>
-        )}
-
-        {/* VOL SHIFTS (with delete) */}
-        {panel === 'shifts' && (
-          <Box>
-            <Typography sx={{ fontFamily: '"Fraunces", serif', fontSize: { xs: '1.4rem', md: '1.6rem' }, fontWeight: 600, color: '#1a1815', mb: '6px' }}>My Volunteer Shifts</Typography>
-            <Typography sx={{ fontSize: '0.88rem', color: '#9a958f', mb: 3.5 }}>
-              Events you're helping organise as a volunteer ({vols.length})
-            </Typography>
-            {vols.length ? vols.map((v, i) => (
-              <ItemRow key={i} name={v.event_name}
-                meta={[v.role || 'Volunteer', v.date ? new Date(v.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '', `📍 ${v.venue || ''}`]}
-                badge="Pending" badgeSx={{ background: '#fef3c7', color: '#92400e' }}
-                sub={`Availability: ${v.availability || 'All days'} · ${v.hours_worked ? `${v.hours_worked} hrs worked` : 'Not started'}`}
-                onDelete={() => openDeleteDialog('assignment', v.assignment_id, v.event_name)} />
-            )) : <EmptyState icon="🙋" title="No volunteer shifts yet" sub="Apply to volunteer at an event to see your shifts here" btnLabel="Apply to Volunteer →" onBtn={() => setPanel('apply')} />}
-          </Box>
-        )}
-
-        {/* APPLY VOL */}
-        {panel === 'apply' && (
-          <Box>
-            <Typography sx={{ fontFamily: '"Fraunces", serif', fontSize: { xs: '1.4rem', md: '1.6rem' }, fontWeight: 600, color: '#1a1815', mb: '6px' }}>Apply to Volunteer</Typography>
-            <Typography sx={{ fontSize: '0.88rem', color: '#9a958f', mb: 3.5 }}>Open an event page and click "Volunteer" to apply</Typography>
-            <Button onClick={() => navigate('/events')} sx={{
-              background: 'linear-gradient(135deg, #1a5c3a, #22804e)', color: '#fff',
-              px: 4, py: 1.3, borderRadius: '10px', fontWeight: 600, textTransform: 'none',
-              boxShadow: '0 2px 8px rgba(26,92,58,.2)',
-              '&:hover': { background: 'linear-gradient(135deg, #145030, #1a6b42)' }
-            }}>Browse Events to Volunteer →</Button>
-          </Box>
-        )}
-
-      </Box>
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialog.open} onClose={() => setDeleteDialog({ open: false, type: '', id: null, name: '' })}
-        PaperProps={{ sx: { borderRadius: '18px', border: '1px solid #e8e5e0', maxWidth: 420, width: '100%' } }}>
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1.5, pt: 3, px: 3, pb: 1 }}>
-          <Box sx={{
-            width: 44, height: 44, borderRadius: '12px', background: '#fee2e2',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
-          }}>
-            <Warning sx={{ color: '#b91c1c', fontSize: 22 }} />
-          </Box>
-          <Box>
-            <Typography sx={{ fontFamily: '"Fraunces", serif', fontWeight: 600, fontSize: '1.15rem', color: '#1a1815' }}>
-              Confirm Delete
-            </Typography>
-          </Box>
-        </DialogTitle>
-        <DialogContent sx={{ px: 3, pt: '8px !important' }}>
-          <Typography sx={{ fontSize: '0.88rem', color: '#5a5550', lineHeight: 1.7 }}>
-            Are you sure you want to delete your {deleteDialog.type === 'registration' ? 'registration' : 'volunteer shift'} for{' '}
-            <strong style={{ color: '#1a1815' }}>"{deleteDialog.name}"</strong>?
-          </Typography>
-          <Typography sx={{ fontSize: '0.82rem', color: '#9a958f', mt: 1 }}>
-            This action cannot be undone.
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 3, pt: 1, gap: 1 }}>
-          <Button onClick={() => setDeleteDialog({ open: false, type: '', id: null, name: '' })}
-            sx={{
-              color: '#5a5550', fontWeight: 500, borderRadius: '10px', px: 2.5,
-              border: '1px solid #e8e5e0', textTransform: 'none',
-              '&:hover': { background: '#f5f3ef', transform: 'none' }
-            }}>Cancel</Button>
-          <Button onClick={handleDelete} sx={{
-            background: 'linear-gradient(135deg, #b91c1c, #dc2626)', color: '#fff',
-            px: 3, borderRadius: '10px', fontWeight: 600, textTransform: 'none',
-            boxShadow: '0 2px 8px rgba(185,28,28,.25)',
-            '&:hover': { background: 'linear-gradient(135deg, #991b1b, #b91c1c)' }
-          }}>Yes, Delete</Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
+      <Modal 
+        isOpen={cancelModal.open} onClose={() => setCancelModal({ open: false, regId: null, eventName: '' })}
+        title="Cancel Registration" icon={X} iconBg="bg-rose-100" iconColor="text-rose-600"
+        actions={<div className="flex justify-end gap-3 w-full"><Button variant="ghost" onClick={() => setCancelModal({ open: false, regId: null, eventName: '' })}>Keep Registration</Button><Button variant="danger" onClick={handleCancel}>Yes, Cancel</Button></div>}
+      >
+        <p className="text-stone-600 font-medium">Are you sure you want to cancel your registration for <strong className="text-stone-900">{cancelModal.eventName}</strong>? This action cannot be undone.</p>
+      </Modal>
+    </div>
   );
 };
-
 export default StudentDashboard;

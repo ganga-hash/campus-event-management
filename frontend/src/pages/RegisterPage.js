@@ -1,26 +1,17 @@
 import React, { useState } from 'react';
-import { Box, Typography, TextField, Button, Alert, ToggleButtonGroup, ToggleButton } from '@mui/material';
 import { Link, useNavigate } from 'react-router-dom';
-import { School, AdminPanelSettings, Person } from '@mui/icons-material';
+import { motion } from 'framer-motion';
 import { register } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-
-const inputSx = {
-  '& .MuiOutlinedInput-root': {
-    borderRadius: '10px', background: '#faf9f7', fontSize: '0.88rem',
-    '& fieldset': { borderColor: '#e8e5e0' },
-    '&:hover fieldset': { borderColor: '#c0bdb7' },
-    '&.Mui-focused fieldset': { borderColor: '#2c3e7a', borderWidth: '1.5px' },
-  }
-};
+import Toast from '../components/ui/Toast';
+import Button from '../components/ui/Button';
 
 const RegisterPage = () => {
-  const [form, setForm] = useState({ name: '', email: '', password: '', department: 'Computer Science', year: 2, role: 'student' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', department: 'Computer Science', year: '2', role: 'student' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { loginUser } = useAuth();
   const navigate = useNavigate();
-  const f = k => e => setForm({ ...form, [k]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault(); setError(''); setLoading(true);
@@ -29,136 +20,159 @@ const RegisterPage = () => {
       loginUser(res.data.token, res.data.user);
       navigate(res.data.user.role === 'admin' ? '/admin' : '/dashboard');
     } catch (err) {
-      console.error('Registration error:', err);
-      if (err.response) {
-        setError(err.response.data?.message || `Server error (${err.response.status})`);
-      } else if (err.request) {
-        setError('Cannot connect to server. Please check if the backend is running.');
-      } else {
-        setError('Registration failed. Please try again.');
-      }
+      if (err.response) setError(err.response.data?.message || `Server error (${err.response.status})`);
+      else if (err.request) setError('Cannot connect to server. Check backend.');
+      else setError('Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    finally { setLoading(false); }
   };
 
   return (
-    <Box sx={{ minHeight: 'calc(100vh - 64px)', display: 'flex' }}>
+    <div className="min-h-[calc(100vh-64px)] flex bg-stone-50">
+      <Toast show={!!error} type="error" message={error} onClose={() => setError('')} />
+
       {/* Left decorative panel */}
-      <Box sx={{
-        display: { xs: 'none', md: 'flex' }, flex: 1,
-        background: 'linear-gradient(135deg, #1a1815 0%, #15803d 60%, #22804e 100%)',
-        alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden'
-      }}>
-        <Box sx={{
-          position: 'absolute', inset: 0, opacity: 0.06,
-          backgroundImage: 'radial-gradient(circle at 2px 2px, #fff 1px, transparent 0)',
-          backgroundSize: '40px 40px',
-        }} />
-        <Box sx={{ textAlign: 'center', position: 'relative', zIndex: 1, px: 5 }}>
-          <Typography sx={{ fontSize: '3rem', mb: 2 }}>🎓</Typography>
-          <Typography sx={{ fontFamily: '"Fraunces", serif', fontSize: '2rem', fontWeight: 600, color: '#fff', mb: 1.5 }}>
-            Join the Community
-          </Typography>
-          <Typography sx={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.5)', lineHeight: 1.7, maxWidth: 340 }}>
+      <div className="hidden md:flex flex-1 bg-gradient-to-br from-emerald-900 via-emerald-800 to-emerald-900 items-center justify-center relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_2px_2px,rgba(255,255,255,0.06)_1px,transparent_0)] bg-[size:40px_40px]" />
+        
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.8 }}
+          className="text-center relative z-10 px-12"
+        >
+          <span className="text-5xl block mb-6">🎓</span>
+          <h1 className="font-display text-4xl font-bold text-white mb-4">Join the Community</h1>
+          <p className="text-lg text-emerald-200 max-w-sm mx-auto leading-relaxed">
             Register to participate in events, volunteer for shifts, and be part of FestZone.
-          </Typography>
-        </Box>
-      </Box>
+          </p>
+        </motion.div>
+      </div>
 
       {/* Right form panel */}
-      <Box sx={{
-        flex: { xs: 1, md: '0 0 500px' }, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        p: { xs: 3, sm: 5 }, background: '#faf9f6'
-      }}>
-        <Box sx={{ width: '100%', maxWidth: 400 }}>
-          <Box sx={{
-            width: 48, height: 48, borderRadius: '14px',
-            background: 'linear-gradient(135deg, #dcfce7, #bbf7d0)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', mb: 3
-          }}>
-            <School sx={{ color: '#15803d', fontSize: 22 }} />
-          </Box>
+      <div className="flex-1 md:flex-none md:w-[480px] lg:w-[560px] flex items-center justify-center p-6 sm:p-12 border-l border-stone-200">
+        <motion.div 
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5, type: 'spring', damping: 25 }}
+          className="w-full max-w-md"
+        >
+          <div className="mb-8 text-center sm:text-left">
+            <h2 className="font-display text-3xl font-bold text-stone-900 mb-2">Create Account</h2>
+            <p className="text-stone-500">Join FestZone and explore events</p>
+          </div>
 
-          <Typography sx={{ fontFamily: '"Fraunces", serif', fontSize: '1.6rem', fontWeight: 600, color: '#1a1815', mb: '6px' }}>
-            Join FestZone
-          </Typography>
-          <Typography sx={{ fontSize: '0.88rem', color: '#9a958f', mb: 4 }}>
-            Create your free student account
-          </Typography>
-
-          {error && (
-            <Alert severity="error" sx={{ mb: 2.5, borderRadius: '10px', border: '1px solid #fecaca' }}>
-              {error}
-            </Alert>
-          )}
-
-          <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
-            <Box>
-              <Typography sx={{ fontSize: '0.76rem', fontWeight: 600, color: '#5a5550', mb: '8px' }}>Register as</Typography>
-              <ToggleButtonGroup
-                value={form.role}
-                exclusive
-                onChange={(e, val) => val && setForm({ ...form, role: val })}
-                fullWidth
-                size="small"
-                sx={{ borderRadius: '10px', '& .MuiToggleButton-root': { textTransform: 'none', fontWeight: 600, fontSize: '0.84rem', borderRadius: '10px', py: 1, '&.Mui-selected': { background: form.role === 'admin' ? 'linear-gradient(135deg, #2c3e7a, #3b4f9a)' : 'linear-gradient(135deg, #15803d, #22804e)', color: '#fff', '&:hover': { background: form.role === 'admin' ? 'linear-gradient(135deg, #243268, #324388)' : 'linear-gradient(135deg, #116932, #1a6b42)' } } } }}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            
+            {/* Role Toggle */}
+            <div className="bg-stone-100 p-1 rounded-xl flex items-center mb-6 relative">
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, role: 'student' })}
+                className={`relative flex-1 py-2 text-sm font-semibold rounded-lg z-10 transition-colors ${form.role === 'student' ? 'text-white' : 'text-stone-600 hover:text-stone-900'}`}
               >
-                <ToggleButton value="student"><Person sx={{ mr: 1, fontSize: 18 }} />Student</ToggleButton>
-                <ToggleButton value="admin"><AdminPanelSettings sx={{ mr: 1, fontSize: 18 }} />Admin</ToggleButton>
-              </ToggleButtonGroup>
-            </Box>
-            <Box>
-              <Typography sx={{ fontSize: '0.76rem', fontWeight: 600, color: '#5a5550', mb: '8px' }}>Full Name</Typography>
-              <TextField size="small" fullWidth value={form.name} onChange={f('name')}
-                placeholder="Aarav Sharma" required sx={inputSx} />
-            </Box>
-            <Box>
-              <Typography sx={{ fontSize: '0.76rem', fontWeight: 600, color: '#5a5550', mb: '8px' }}>College Email</Typography>
-              <TextField size="small" fullWidth type="email" value={form.email} onChange={f('email')}
-                placeholder="aarav@college.edu" required sx={inputSx} />
-            </Box>
-            <Box>
-              <Typography sx={{ fontSize: '0.76rem', fontWeight: 600, color: '#5a5550', mb: '8px' }}>Password</Typography>
-              <TextField size="small" fullWidth type="password" value={form.password} onChange={f('password')}
-                placeholder="Create a password" required sx={inputSx} />
-            </Box>
-            <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-              <Box>
-                <Typography sx={{ fontSize: '0.76rem', fontWeight: 600, color: '#5a5550', mb: '8px' }}>Department</Typography>
-                <TextField select size="small" fullWidth value={form.department} onChange={f('department')}
-                  SelectProps={{ native: true }} sx={inputSx}>
-                  {['Computer Science', 'Electronics', 'Mechanical', 'Civil', 'IT', 'Biotechnology'].map(d => <option key={d} value={d}>{d}</option>)}
-                </TextField>
-              </Box>
-              <Box>
-                <Typography sx={{ fontSize: '0.76rem', fontWeight: 600, color: '#5a5550', mb: '8px' }}>Year</Typography>
-                <TextField select size="small" fullWidth value={form.year} onChange={f('year')}
-                  SelectProps={{ native: true }} sx={inputSx}>
-                  {[1, 2, 3, 4].map(y => <option key={y} value={y}>Year {y}</option>)}
-                </TextField>
-              </Box>
-            </Box>
-            <Button type="submit" fullWidth disabled={loading} sx={{
-              py: 1.4, mt: 0.5, fontSize: '0.88rem', fontWeight: 600,
-              background: 'linear-gradient(135deg, #15803d, #22804e)', color: '#fff',
-              borderRadius: '10px', textTransform: 'none',
-              boxShadow: '0 2px 8px rgba(21,128,61,.25)',
-              '&:hover': { background: 'linear-gradient(135deg, #116932, #1a6b42)' },
-              '&:disabled': { background: '#c0bdb7', color: '#fff' }
-            }}>
-              {loading ? 'Creating account…' : 'Create Account'}
-            </Button>
-          </Box>
+                Student
+              </button>
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, role: 'admin' })}
+                className={`relative flex-1 py-2 text-sm font-semibold rounded-lg z-10 transition-colors ${form.role === 'admin' ? 'text-white' : 'text-stone-600 hover:text-stone-900'}`}
+              >
+                Admin
+              </button>
+              <div className="absolute inset-1 flex pointer-events-none">
+                <motion.div 
+                  initial={false}
+                  animate={{ x: form.role === 'student' ? 0 : '100%' }}
+                  transition={{ type: "spring", bounce: 0.1, duration: 0.5 }}
+                  className={`w-1/2 h-full rounded-lg shadow-sm ${form.role === 'admin' ? 'bg-indigo-600' : 'bg-emerald-600'}`}
+                />
+              </div>
+            </div>
 
-          <Typography sx={{ fontSize: '0.84rem', color: '#9a958f', textAlign: 'center', mt: 3.5 }}>
+            <div>
+              <label className="block text-sm font-semibold text-stone-700 mb-1.5">Full Name</label>
+              <input 
+                type="text" 
+                required 
+                value={form.name}
+                onChange={e => setForm({ ...form, name: e.target.value })}
+                placeholder="Aarav Sharma" 
+                className="w-full bg-white border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 transition-all font-medium placeholder:text-stone-400"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-semibold text-stone-700 mb-1.5">College Email</label>
+              <input 
+                type="email" 
+                required 
+                value={form.email}
+                onChange={e => setForm({ ...form, email: e.target.value })}
+                placeholder="aarav@college.edu" 
+                className="w-full bg-white border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 transition-all font-medium placeholder:text-stone-400"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-stone-700 mb-1.5">Password</label>
+              <input 
+                type="password" 
+                required 
+                value={form.password}
+                onChange={e => setForm({ ...form, password: e.target.value })}
+                placeholder="Create a password" 
+                className="w-full bg-white border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 transition-all font-medium placeholder:text-stone-400"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-stone-700 mb-1.5">Department</label>
+                <select 
+                  value={form.department} 
+                  onChange={e => setForm({ ...form, department: e.target.value })}
+                  className="w-full bg-white border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 transition-all font-medium text-stone-700 appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394a3b8%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:16px_16px] bg-[right_12px_center] bg-no-repeat pr-10"
+                >
+                  {['Computer Science', 'Electronics', 'Mechanical', 'Civil', 'IT', 'Biotechnology'].map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-stone-700 mb-1.5">Year</label>
+                <select 
+                  value={form.year} 
+                  onChange={e => setForm({ ...form, year: e.target.value })}
+                  className="w-full bg-white border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 transition-all font-medium text-stone-700 appearance-none bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%2394a3b8%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E')] bg-[length:16px_16px] bg-[right_12px_center] bg-no-repeat pr-10"
+                >
+                  {[1, 2, 3, 4].map(y => <option key={y} value={y}>Year {y}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <Button 
+              type="submit" 
+              disabled={loading} 
+              className={`w-full py-3.5 mt-2 text-[15px] ${form.role === 'admin' ? 'bg-gradient-to-br from-indigo-800 to-indigo-700 hover:from-indigo-900 hover:to-indigo-800 shadow-glow-indigo' : 'bg-gradient-to-br from-emerald-700 to-emerald-600 hover:from-emerald-800 hover:to-emerald-700 shadow-glow-emerald'}`}
+            >
+              {loading ? (
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                  Creating account...
+                </div>
+              ) : 'Create Account'}
+            </Button>
+          </form>
+
+          <p className="text-center text-sm font-medium text-stone-500 mt-8">
             Already have an account?{' '}
-            <Box component={Link} to="/login" sx={{ color: '#2c3e7a', fontWeight: 600, textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
+            <Link to="/login" className="text-emerald-700 hover:text-emerald-800 transition-colors font-semibold">
               Sign in
-            </Box>
-          </Typography>
-        </Box>
-      </Box>
-    </Box>
+            </Link>
+          </p>
+        </motion.div>
+      </div>
+    </div>
   );
 };
 
