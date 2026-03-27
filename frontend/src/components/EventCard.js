@@ -27,7 +27,7 @@ const STATUS_STYLES = {
 
 const cardVariants = {
   hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { type: 'spring', damping: 25, stiffness: 300 } }
+  show: { opacity: 1, y: 0, transition: { type: 'spring', damping: 25, stiffness: 300 } }
 };
 
 const EventCard = ({ event, onRegister, onVolunteer, isRegistered, isVolunteer, showActions = true }) => {
