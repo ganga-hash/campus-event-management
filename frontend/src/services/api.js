@@ -38,6 +38,9 @@ export const getAllAssignments = () => API.get('/volunteers/assignments/all');
 export const getSponsors = () => API.get('/sponsors');
 export const addSponsor = d => API.post('/sponsors', d);
 export const linkSponsorToEvent = d => API.post('/sponsors/link', d);
+export const addSponsorContribution = d => API.post('/sponsors/contribution/add', d);
+export const deleteSponsor = (id, force = false) =>
+  API.delete(`/sponsors/${id}`, { params: force ? { force: 'true' } : {} });
 export const getDashboardStats = () => API.get('/analytics/stats');
 export const getRegistrationsPerEvent = () => API.get('/analytics/registrations-per-event');
 export const getVolunteerDistribution = () => API.get('/analytics/volunteer-distribution');

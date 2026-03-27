@@ -6,7 +6,7 @@ import {
   getEvents, createEvent, updateEvent, deleteEvent,
   getAllRegistrations, adminUpdateRegistrationStatus, adminDeleteRegistration,
   getAllAssignments, adminUpdateAssignmentStatus, adminDeleteAssignment,
-  getSponsors, addSponsor, linkSponsorToEvent
+  getSponsors, addSponsor, linkSponsorToEvent, addSponsorContribution, deleteSponsor
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import SkeletonRow from '../components/ui/SkeletonRow';
@@ -37,10 +37,13 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const [modalOpen, setModalOpen] = useState(false);
-  const [deleteModal, setDeleteModal] = useState({ open: false, id: null, title: '', type: '' });
+  const [deleteModal, setDeleteModal] = useState({ open: false, id: null, title: '', type: '', hasContributions: false });
+  const [sponsorDeleteAcknowledged, setSponsorDeleteAcknowledged] = useState(false);
   
   const [sponsorModal, setSponsorModal] = useState(false);
   const [sponsorForm, setSponsorForm] = useState({ name: '', contact_email: '', contact_phone: '', tier: 'silver', website: '', logo_url: '' });
+  const [contributionModal, setContributionModal] = useState({ open: false, sponsor_id: null, sponsorName: '' });
+  const [contributionForm, setContributionForm] = useState({ event_id: '', additional_amount: '' });
   const [linkModal, setLinkModal] = useState({ open: false, event_id: null, eventName: '' });
   const [linkForm, setLinkForm] = useState({ sponsor_id: '', sponsorship_amount: '' });
   
@@ -49,6 +52,11 @@ const AdminDashboard = () => {
   const [editingId, setEditingId] = useState(null);
 
   const showToast = (type, message) => setToast({ show: true, type, message });
+
+  const closeDeleteModal = () => {
+    setDeleteModal({ open: false, id: null, title: '', type: '', hasContributions: false });
+    setSponsorDeleteAcknowledged(false);
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -108,8 +116,15 @@ const AdminDashboard = () => {
       } else if (deleteModal.type === 'assignment') {
         await adminDeleteAssignment(deleteModal.id);
         showToast('success', 'Volunteer assignment deleted successfully');
+      } else if (deleteModal.type === 'sponsor') {
+        if (deleteModal.hasContributions && !sponsorDeleteAcknowledged) {
+          showToast('error', 'Please confirm force delete for sponsors with contributions');
+          return;
+        }
+        await deleteSponsor(deleteModal.id, deleteModal.hasContributions && sponsorDeleteAcknowledged);
+        showToast('success', 'Sponsor deleted successfully');
       }
-      setDeleteModal({ open: false, id: null, title: '', type: '' });
+      closeDeleteModal();
       loadData();
     } catch (err) {
       showToast('error', err.response?.data?.message || 'Delete failed');
@@ -152,6 +167,23 @@ const AdminDashboard = () => {
       setLinkForm({ sponsor_id: '', sponsorship_amount: '' });
       loadData();
     } catch (err) { showToast('error', 'Failed to link sponsor'); }
+  };
+
+  const handleContributionSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await addSponsorContribution({
+        event_id: contributionForm.event_id,
+        sponsor_id: contributionModal.sponsor_id,
+        additional_amount: contributionForm.additional_amount
+      });
+      showToast('success', 'Contribution added successfully');
+      setContributionModal({ open: false, sponsor_id: null, sponsorName: '' });
+      setContributionForm({ event_id: '', additional_amount: '' });
+      loadData();
+    } catch (err) {
+      showToast('error', err.response?.data?.message || 'Failed to add contribution');
+    }
   };
 
   const metrics = {
@@ -303,7 +335,7 @@ const AdminDashboard = () => {
                           <div className="flex items-center justify-end gap-2">
                             <button onClick={() => setLinkModal({ open: true, event_id: event.event_id, eventName: event.name })} className="p-2 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors border max-sm:hidden" title="Link Sponsor"><LinkIcon className="w-4 h-4" /></button>
                             <button onClick={() => handleEditClick(event)} className="p-2 text-stone-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Edit"><Pencil className="w-4 h-4" /></button>
-                            <button onClick={() => setDeleteModal({ open: true, id: event.event_id, title: event.name, type: 'event' })} className="p-2 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Delete"><Trash2 className="w-4 h-4" /></button>
+                            <button onClick={() => { setSponsorDeleteAcknowledged(false); setDeleteModal({ open: true, id: event.event_id, title: event.name, type: 'event', hasContributions: false }); }} className="p-2 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Delete"><Trash2 className="w-4 h-4" /></button>
                           </div>
                         </td>
                       </tr>
@@ -362,7 +394,7 @@ const AdminDashboard = () => {
                                 <button onClick={() => updateRegStatus(reg.registration_id, 'rejected')} className="p-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors" title="Reject"><XCircle className="w-4 h-4" /></button>
                               </>
                             )}
-                            <button onClick={() => setDeleteModal({ open: true, id: reg.registration_id, title: `registration by ${reg.student_name}`, type: 'registration' })} className="p-2 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Delete"><Trash2 className="w-4 h-4" /></button>
+                            <button onClick={() => { setSponsorDeleteAcknowledged(false); setDeleteModal({ open: true, id: reg.registration_id, title: `registration by ${reg.student_name}`, type: 'registration', hasContributions: false }); }} className="p-2 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Delete"><Trash2 className="w-4 h-4" /></button>
                           </div>
                         </td>
                       </tr>
@@ -424,7 +456,7 @@ const AdminDashboard = () => {
                                 <button onClick={() => updateVolStatus(asn.assignment_id, 'rejected')} className="p-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors" title="Reject"><XCircle className="w-4 h-4" /></button>
                               </>
                             )}
-                            <button onClick={() => setDeleteModal({ open: true, id: asn.assignment_id, title: `volunteer ${asn.volunteer_name}`, type: 'assignment' })} className="p-2 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Delete"><Trash2 className="w-4 h-4" /></button>
+                            <button onClick={() => { setSponsorDeleteAcknowledged(false); setDeleteModal({ open: true, id: asn.assignment_id, title: `volunteer ${asn.volunteer_name}`, type: 'assignment', hasContributions: false }); }} className="p-2 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Delete"><Trash2 className="w-4 h-4" /></button>
                           </div>
                         </td>
                       </tr>
@@ -458,11 +490,12 @@ const AdminDashboard = () => {
                       <th className="px-6 py-4 font-semibold">Tier</th>
                       <th className="px-6 py-4 font-semibold text-center">Events Sponsored</th>
                       <th className="px-6 py-4 font-semibold text-right">Total Contribution</th>
+                      <th className="px-6 py-4 font-semibold text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-stone-100">
                     {loading ? (
-                      [...Array(3)].map((_, i) => <SkeletonRow key={i} columns={4} />)
+                      [...Array(3)].map((_, i) => <SkeletonRow key={i} columns={5} />)
                     ) : sponsors.map(s => (
                       <tr key={s.sponsor_id} className="hover:bg-stone-50 transition-colors">
                         <td className="px-6 py-4 font-semibold text-stone-800">{s.sponsor_name}</td>
@@ -476,6 +509,36 @@ const AdminDashboard = () => {
                         </td>
                         <td className="px-6 py-4 text-center font-medium text-stone-600">{s.events_sponsored || 0}</td>
                         <td className="px-6 py-4 text-right font-medium text-emerald-600">₹{s.total_contribution || 0}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => {
+                                setContributionModal({ open: true, sponsor_id: s.sponsor_id, sponsorName: s.sponsor_name });
+                                setContributionForm({ event_id: '', additional_amount: '' });
+                              }}
+                              className="p-2 text-stone-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              title="Add Contribution"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSponsorDeleteAcknowledged(false);
+                                setDeleteModal({
+                                  open: true,
+                                  id: s.sponsor_id,
+                                  title: s.sponsor_name,
+                                  type: 'sponsor',
+                                  hasContributions: (s.events_sponsored || 0) > 0 || Number(s.total_contribution || 0) > 0
+                                });
+                              }}
+                              className="p-2 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -488,11 +551,27 @@ const AdminDashboard = () => {
 
       {/* Delete Confirmation Modal */}
       <Modal 
-        isOpen={deleteModal.open} onClose={() => setDeleteModal({ open: false, id: null, title: '', type: '' })}
+        isOpen={deleteModal.open} onClose={closeDeleteModal}
         title={`Delete ${deleteModal.type}`} icon={Trash2} iconBg="bg-rose-100" iconColor="text-rose-600"
-        actions={<div className="flex w-full gap-3 justify-end"><Button variant="ghost" onClick={() => setDeleteModal({ open: false, id: null, title: '', type: '' })}>Cancel</Button><Button variant="danger" onClick={handleDelete}>Yes, Delete</Button></div>}
+        actions={<div className="flex w-full gap-3 justify-end"><Button variant="ghost" onClick={closeDeleteModal}>Cancel</Button><Button variant="danger" disabled={deleteModal.type === 'sponsor' && deleteModal.hasContributions && !sponsorDeleteAcknowledged} onClick={handleDelete}>Yes, Delete</Button></div>}
       >
-        <p className="text-stone-600 font-medium">Are you sure you want to delete <strong className="text-stone-900">{deleteModal.title}</strong>? This action cannot be undone.</p>
+        <div className="space-y-3">
+          <p className="text-stone-600 font-medium">Are you sure you want to delete <strong className="text-stone-900">{deleteModal.title}</strong>? This action cannot be undone.</p>
+          {deleteModal.type === 'sponsor' && deleteModal.hasContributions && (
+            <div className="rounded-xl border border-rose-200 bg-rose-50 p-3">
+              <p className="text-sm font-semibold text-rose-700">This sponsor has active contributions linked to events.</p>
+              <label className="mt-2 flex items-start gap-2 text-sm text-rose-700 font-medium cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={sponsorDeleteAcknowledged}
+                  onChange={(e) => setSponsorDeleteAcknowledged(e.target.checked)}
+                />
+                I understand this will remove sponsor links and contribution records from associated events.
+              </label>
+            </div>
+          )}
+        </div>
       </Modal>
 
       {/* Create/Edit Event Modal */}
@@ -616,6 +695,50 @@ const AdminDashboard = () => {
           <div>
             <label className="block text-sm font-semibold text-stone-700 mb-1.5">Sponsorship Amount (₹)</label>
             <input type="number" min="0" required value={linkForm.sponsorship_amount} onChange={e => setLinkForm({...linkForm, sponsorship_amount: e.target.value})} className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 font-medium" placeholder="e.g. 15000" />
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        isOpen={contributionModal.open}
+        onClose={() => setContributionModal({ open: false, sponsor_id: null, sponsorName: '' })}
+        title={`Add Contribution: ${contributionModal.sponsorName}`}
+        icon={DollarSign}
+        actions={
+          <div className="w-full flex justify-end gap-3">
+            <Button variant="ghost" onClick={() => setContributionModal({ open: false, sponsor_id: null, sponsorName: '' })}>Cancel</Button>
+            <Button className="bg-indigo-700 shadow-glow-indigo hover:bg-indigo-800" onClick={handleContributionSubmit}>Add Amount</Button>
+          </div>
+        }
+      >
+        <form onSubmit={handleContributionSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-semibold text-stone-700 mb-1.5">Select Event</label>
+            <select
+              required
+              value={contributionForm.event_id}
+              onChange={(e) => setContributionForm({ ...contributionForm, event_id: e.target.value })}
+              className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 font-medium text-stone-700"
+            >
+              <option value="" disabled>Choose an Event...</option>
+              {events.map(ev => (
+                <option key={ev.event_id} value={ev.event_id}>{ev.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-stone-700 mb-1.5">Additional Amount (₹)</label>
+            <input
+              type="number"
+              min="0.01"
+              step="0.01"
+              required
+              value={contributionForm.additional_amount}
+              onChange={(e) => setContributionForm({ ...contributionForm, additional_amount: e.target.value })}
+              className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 font-medium"
+              placeholder="e.g. 5000"
+            />
+            <p className="mt-1 text-xs text-stone-500 font-medium">Use this to increase an existing sponsor contribution for the selected event.</p>
           </div>
         </form>
       </Modal>
