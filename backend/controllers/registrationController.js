@@ -5,6 +5,10 @@ const registerForEvent = async (req, res) => {
   const student_id = req.user.id;
 
   try {
+    if (req.user.role === 'admin') {
+      return res.status(403).json({ message: 'Admins cannot register for events as participants.' });
+    }
+
     if (!event_id) {
       return res.status(400).json({ message: 'event_id is required' });
     }
@@ -36,11 +40,15 @@ const registerForEvent = async (req, res) => {
     );
     if (existing.length > 0) return res.status(409).json({ message: 'Already registered for this event' });
 
-    await pool.query('INSERT INTO Registration (student_id, event_id) VALUES (?, ?)', [student_id, event_id]);
+    const status = event.event_type === 'approval_required' ? 'pending' : 'confirmed';
+    await pool.query('INSERT INTO Registration (student_id, event_id, status) VALUES (?, ?, ?)', [student_id, event_id, status]);
 
     // Fetch updated participant count
     const [updated] = await pool.query('SELECT current_participants FROM Event WHERE event_id = ?', [event_id]);
-    res.status(201).json({ message: 'Successfully registered for event', current_participants: updated[0]?.current_participants });
+    res.status(201).json({ 
+      message: status === 'pending' ? 'Registration pending admin approval' : 'Successfully registered for event', 
+      current_participants: updated[0]?.current_participants 
+    });
   } catch (err) {
     if (err.message && err.message.includes('full')) {
       return res.status(400).json({ message: 'Event is full (trigger).' });
@@ -149,4 +157,27 @@ const getAllRegistrations = async (req, res) => {
   }
 };
 
-module.exports = { registerForEvent, getMyRegistrations, cancelRegistration, deleteRegistration, adminDeleteRegistration, getAllRegistrations };
+const adminUpdateRegistrationStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['confirmed', 'rejected'].includes(status)) return res.status(400).json({ message: 'Invalid status' });
+
+    const [reg] = await pool.query('SELECT event_id, status FROM Registration WHERE registration_id = ?', [req.params.id]);
+    if (reg.length === 0) return res.status(404).json({ message: 'Registration not found' });
+
+    await pool.query('UPDATE Registration SET status = ? WHERE registration_id = ?', [status, req.params.id]);
+
+    if (reg[0].status === 'pending' && status === 'confirmed') {
+      await pool.query('UPDATE Event SET current_participants = current_participants + 1 WHERE event_id = ?', [reg[0].event_id]);
+    } else if (reg[0].status === 'confirmed' && status === 'rejected') {
+      await pool.query('UPDATE Event SET current_participants = GREATEST(current_participants - 1, 0) WHERE event_id = ?', [reg[0].event_id]);
+    }
+
+    res.json({ message: 'Registration status updated successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+module.exports = { registerForEvent, getMyRegistrations, cancelRegistration, deleteRegistration, adminDeleteRegistration, getAllRegistrations, adminUpdateRegistrationStatus };

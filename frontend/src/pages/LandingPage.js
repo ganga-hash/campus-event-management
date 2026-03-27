@@ -60,10 +60,7 @@ const LandingPage = () => {
             style={{ opacity, y }}
             className="max-w-4xl mx-auto"
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-md mb-8">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-sm font-semibold tracking-wider text-white/80 uppercase">Registrations Open · March 14–16, 2026</span>
-            </div>
+
 
             <h1 className="text-5xl sm:text-7xl lg:text-8xl font-display font-bold text-white tracking-tight leading-[1.1] mb-8">
               Where Talent Finds <br/>
@@ -156,57 +153,7 @@ const LandingPage = () => {
         </div>
       </section>
 
-      {/* TIMELINE SECTION */}
-      <section className="py-24 bg-white relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-1/3 h-full bg-stone-50/50 skew-x-12 translate-x-1/2" />
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-20"
-          >
-            <span className="text-xs font-bold tracking-[0.2em] text-stone-400 uppercase mb-3 block">Schedule</span>
-            <h2 className="text-4xl md:text-5xl font-display font-bold text-stone-900 tracking-tight">Three Days of Action</h2>
-          </motion.div>
 
-          <div className="relative">
-            {/* Center Line Desktop */}
-            <div className="hidden md:block absolute left-1/2 top-0 bottom-0 w-0.5 bg-gradient-to-b from-stone-100 via-indigo-200 to-stone-100 -translate-x-1/2" />
-            
-            <div className="space-y-12">
-              {TIMELINE.map((day, i) => (
-                <motion.div 
-                  key={day.day}
-                  initial={{ opacity: 0, x: i % 2 === 0 ? -40 : 40 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true, margin: "-100px" }}
-                  transition={{ type: 'spring', damping: 25, stiffness: 120 }}
-                  className={`flex flex-col md:flex-row items-center gap-8 ${i % 2 !== 0 ? 'md:flex-row-reverse' : ''}`}
-                >
-                  <div className={`w-full md:w-1/2 ${i % 2 === 0 ? 'md:text-right' : 'md:text-left'}`}>
-                    <div className="bg-stone-50 border border-stone-200 rounded-3xl p-6 sm:p-8 hover:shadow-lg transition-shadow inline-block w-full">
-                      <h3 className="font-display text-xl font-bold text-indigo-800 mb-4">{day.day}</h3>
-                      <div className={`flex flex-wrap gap-2 ${i % 2 === 0 ? 'md:justify-end' : 'md:justify-start'}`}>
-                        {day.events.map((ev) => (
-                          <span key={ev} className="px-3 py-1.5 bg-white border border-stone-200 text-stone-600 rounded-lg text-sm font-medium hover:text-indigo-700 hover:border-indigo-200 transition-colors">
-                            {ev}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                  {/* Dot */}
-                  <div className="hidden md:flex w-12 h-12 rounded-full border-4 border-white bg-indigo-100 items-center justify-center flex-shrink-0 z-10 shadow-sm">
-                    <div className="w-3 h-3 rounded-full bg-indigo-600" />
-                  </div>
-                  <div className="hidden md:block w-1/2" />
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* CTA SECTION */}
       <section className="py-24 relative bg-indigo-900 overflow-hidden">

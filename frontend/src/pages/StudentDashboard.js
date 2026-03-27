@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, Users, Ticket, CheckCircle2, X } from 'lucide-react';
-import { getMyRegistrations, getMyAssignments, cancelRegistration } from '../services/api';
+import { getMyRegistrations, getMyAssignments, cancelRegistration, deleteMyAssignment } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import SkeletonRow from '../components/ui/SkeletonRow';
 import EmptyState from '../components/ui/EmptyState';
@@ -24,7 +24,7 @@ const StudentDashboard = () => {
   const [vols, setVols] = useState([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
-  const [cancelModal, setCancelModal] = useState({ open: false, regId: null, eventName: '' });
+  const [cancelModal, setCancelModal] = useState({ open: false, regId: null, volId: null, eventName: '', type: '' });
 
   const showToast = (type, message) => setToast({ show: true, type, message });
 
@@ -45,10 +45,16 @@ const StudentDashboard = () => {
 
   const handleCancel = async () => {
     try {
-      await cancelRegistration(cancelModal.regId);
-      setRegs(regs.map(r => r.registration_id === cancelModal.regId ? { ...r, status: 'cancelled' } : r));
-      setCancelModal({ open: false, regId: null, eventName: '' });
-      showToast('success', 'Registration cancelled successfully');
+      if (cancelModal.type === 'registration') {
+        await cancelRegistration(cancelModal.regId);
+        setRegs(regs.map(r => r.registration_id === cancelModal.regId ? { ...r, status: 'cancelled' } : r));
+        showToast('success', 'Registration cancelled successfully');
+      } else if (cancelModal.type === 'volunteer') {
+        await deleteMyAssignment(cancelModal.volId);
+        setVols(vols.filter(v => v.assignment_id !== cancelModal.volId));
+        showToast('success', 'Volunteer role cancelled successfully');
+      }
+      setCancelModal({ open: false, regId: null, volId: null, eventName: '', type: '' });
     } catch (err) { showToast('error', 'Cancellation failed'); }
   };
 
@@ -151,12 +157,18 @@ const StudentDashboard = () => {
                           </td>
                           <td className="px-6 py-4">
                             {activeTab === 'volunteer' ? (
-                              <span className="inline-flex px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wide bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">
-                                {item.role}
+                              <span className={`inline-flex px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide border whitespace-nowrap ${
+                                item.status === 'accepted' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                item.status === 'pending' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                item.status === 'rejected' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                                'bg-stone-50 text-stone-500 border-stone-200'
+                              }`}>
+                                {item.status} ({item.role})
                               </span>
                             ) : (
-                              <span className={`inline-flex px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wide border whitespace-nowrap ${
-                                item.status === 'registered' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                              <span className={`inline-flex px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wide border whitespace-nowrap ${
+                                item.status === 'confirmed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                item.status === 'pending' ? 'bg-amber-50 text-amber-700 border-amber-200' :
                                 item.status === 'cancelled' ? 'bg-rose-50 text-rose-700 border-rose-200' :
                                 'bg-stone-50 text-stone-500 border-stone-200'
                               }`}>
@@ -165,8 +177,12 @@ const StudentDashboard = () => {
                             )}
                           </td>
                           <td className="px-6 py-4 text-right whitespace-nowrap">
-                            {activeTab === 'registrations' && item.status === 'registered' ? (
-                              <button onClick={() => setCancelModal({ open: true, regId: item.registration_id, eventName: item.event_name })} className="text-sm font-semibold text-rose-600 hover:text-rose-800 transition-colors md:opacity-0 md:group-hover:opacity-100">
+                            {activeTab === 'registrations' && (item.status === 'confirmed' || item.status === 'pending') ? (
+                              <button onClick={() => setCancelModal({ open: true, regId: item.registration_id, eventName: item.event_name, type: 'registration' })} className="text-sm font-semibold text-rose-600 hover:text-rose-800 transition-colors md:opacity-0 md:group-hover:opacity-100">
+                                Cancel
+                              </button>
+                            ) : activeTab === 'volunteer' && (item.status === 'accepted' || item.status === 'pending') ? (
+                              <button onClick={() => setCancelModal({ open: true, volId: item.assignment_id, eventName: item.event_name, type: 'volunteer' })} className="text-sm font-semibold text-rose-600 hover:text-rose-800 transition-colors md:opacity-0 md:group-hover:opacity-100">
                                 Cancel
                               </button>
                             ) : (
@@ -187,11 +203,11 @@ const StudentDashboard = () => {
       </div>
 
       <Modal 
-        isOpen={cancelModal.open} onClose={() => setCancelModal({ open: false, regId: null, eventName: '' })}
-        title="Cancel Registration" icon={X} iconBg="bg-rose-100" iconColor="text-rose-600"
-        actions={<div className="flex justify-end gap-3 w-full"><Button variant="ghost" onClick={() => setCancelModal({ open: false, regId: null, eventName: '' })}>Keep Registration</Button><Button variant="danger" onClick={handleCancel}>Yes, Cancel</Button></div>}
+        isOpen={cancelModal.open} onClose={() => setCancelModal({ open: false, regId: null, volId: null, eventName: '', type: '' })}
+        title={`Cancel ${cancelModal.type === 'registration' ? 'Registration' : 'Volunteer Role'}`} icon={X} iconBg="bg-rose-100" iconColor="text-rose-600"
+        actions={<div className="flex justify-end gap-3 w-full"><Button variant="ghost" onClick={() => setCancelModal({ open: false, regId: null, volId: null, eventName: '', type: '' })}>Keep It</Button><Button variant="danger" onClick={handleCancel}>Yes, Cancel</Button></div>}
       >
-        <p className="text-stone-600 font-medium">Are you sure you want to cancel your registration for <strong className="text-stone-900">{cancelModal.eventName}</strong>? This action cannot be undone.</p>
+        <p className="text-stone-600 font-medium">Are you sure you want to cancel your {cancelModal.type} for <strong className="text-stone-900">{cancelModal.eventName}</strong>? This action cannot be undone.</p>
       </Modal>
     </div>
   );

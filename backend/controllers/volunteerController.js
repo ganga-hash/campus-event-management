@@ -15,6 +15,10 @@ const applyVolunteerEvent = async (req, res) => {
   const { event_id, role, availability, skills } = req.body;
   const student_id = req.user.id;
   try {
+    if (req.user.role === 'admin') {
+      return res.status(403).json({ message: 'Admins cannot volunteer for events.' });
+    }
+    
     if (!event_id) {
       return res.status(400).json({ message: 'event_id is required' });
     }
@@ -56,7 +60,7 @@ const getMyAssignments = async (req, res) => {
     const [volRows] = await pool.query('SELECT volunteer_id FROM Volunteer WHERE student_id = ?', [req.user.id]);
     if (volRows.length === 0) return res.json([]);
     const [rows] = await pool.query(`
-      SELECT a.assignment_id, a.role, a.assigned_at, a.hours_worked,
+      SELECT a.assignment_id, a.role, a.assigned_at, a.hours_worked, a.status,
         e.name AS event_name, e.date, e.time, e.venue, e.event_id, c.name AS category
       FROM Assignment a
       JOIN Event e ON a.event_id = e.event_id
@@ -83,7 +87,7 @@ const getAllVolunteers = async (req, res) => {
 const getAllAssignments = async (req, res) => {
   try {
     const [rows] = await pool.query(`
-      SELECT a.assignment_id, a.role, a.assigned_at, a.hours_worked,
+      SELECT a.assignment_id, a.role, a.assigned_at, a.hours_worked, a.status,
         s.name AS volunteer_name, s.email, e.name AS event_name, e.date, e.venue, c.name AS category
       FROM Assignment a JOIN Volunteer v ON a.volunteer_id=v.volunteer_id
       JOIN Student s ON v.student_id=s.student_id
@@ -111,4 +115,19 @@ const adminDeleteAssignment = async (req, res) => {
   } catch (err) { res.status(500).json({ message: 'Server error' }); }
 };
 
-module.exports = { registerVolunteer, applyVolunteerEvent, assignVolunteer, getMyAssignments, deleteMyAssignment, adminDeleteAssignment, getAllVolunteers, getAllAssignments };
+const adminUpdateAssignmentStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['accepted', 'rejected'].includes(status)) return res.status(400).json({ message: 'Invalid status' });
+
+    const [assignment] = await pool.query('SELECT event_id FROM Assignment WHERE assignment_id = ?', [req.params.id]);
+    if (assignment.length === 0) return res.status(404).json({ message: 'Assignment not found' });
+
+    await pool.query('UPDATE Assignment SET status = ? WHERE assignment_id = ?', [status, req.params.id]);
+    res.json({ message: 'Assignment status updated successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+module.exports = { registerVolunteer, applyVolunteerEvent, assignVolunteer, getMyAssignments, deleteMyAssignment, adminDeleteAssignment, getAllVolunteers, getAllAssignments, adminUpdateAssignmentStatus };

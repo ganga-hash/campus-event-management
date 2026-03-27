@@ -234,32 +234,36 @@ const EventDetail = () => {
                 )}
               </AnimatePresence>
 
-              <h4 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-4 pb-2 border-b border-stone-100">Ways to Join</h4>
-              
-              <div className="grid sm:grid-cols-2 gap-4">
-                {!full && !isRegistered && !isVolunteer && (
-                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handleParticipate}
-                    className={`bg-white border-2 border-stone-100 rounded-2xl p-5 cursor-pointer hover:border-transparent hover:shadow-glow-indigo transition-all group`}
-                  >
-                    <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-xl mb-4 group-hover:bg-indigo-600 group-hover:text-white transition-colors">🎫</div>
-                    <h4 className="font-bold text-stone-800 mb-1">Participate</h4>
-                    <p className="text-sm text-stone-500 font-medium">Compete and win prizes. Your name goes on the scoreboard.</p>
-                  </motion.div>
-                )}
-                
-                {!isVolunteer && !isRegistered && (
-                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setRoleModal(true)}
-                    className={`bg-white border-2 border-stone-100 rounded-2xl p-5 cursor-pointer hover:border-transparent hover:shadow-glow-emerald transition-all group`}
-                  >
-                    <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-xl mb-4 group-hover:bg-emerald-600 group-hover:text-white transition-colors">🙋</div>
-                    <h4 className="font-bold text-stone-800 mb-1">Volunteer</h4>
-                    <p className="text-sm text-stone-500 font-medium">Help organise. Get a certificate and volunteer hours.</p>
-                  </motion.div>
-                )}
-              </div>
-              
-              {(isRegistered || isVolunteer) && (
-                <p className="text-sm text-stone-400 mt-6 text-center font-medium bg-stone-50 py-3 rounded-xl border border-stone-100">You can only join this event in one role.</p>
+              {user?.role !== 'admin' && (
+                <>
+                  <h4 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-4 pb-2 border-b border-stone-100">Ways to Join</h4>
+                  
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    {!full && !isRegistered && !isVolunteer && (
+                      <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={handleParticipate}
+                        className={`bg-white border-2 border-stone-100 rounded-2xl p-5 cursor-pointer hover:border-transparent hover:shadow-glow-indigo transition-all group`}
+                      >
+                        <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center text-xl mb-4 group-hover:bg-indigo-600 group-hover:text-white transition-colors">🎫</div>
+                        <h4 className="font-bold text-stone-800 mb-1">Participate</h4>
+                        <p className="text-sm text-stone-500 font-medium">Compete and win prizes. Your name goes on the scoreboard.</p>
+                      </motion.div>
+                    )}
+                    
+                    {!isVolunteer && !isRegistered && (
+                      <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} onClick={() => setRoleModal(true)}
+                        className={`bg-white border-2 border-stone-100 rounded-2xl p-5 cursor-pointer hover:border-transparent hover:shadow-glow-emerald transition-all group`}
+                      >
+                        <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-xl mb-4 group-hover:bg-emerald-600 group-hover:text-white transition-colors">🙋</div>
+                        <h4 className="font-bold text-stone-800 mb-1">Volunteer</h4>
+                        <p className="text-sm text-stone-500 font-medium">Help organise. Get a certificate and volunteer hours.</p>
+                      </motion.div>
+                    )}
+                  </div>
+                  
+                  {(isRegistered || isVolunteer) && (
+                    <p className="text-sm text-stone-400 mt-6 text-center font-medium bg-stone-50 py-3 rounded-xl border border-stone-100">You can only join this event in one role.</p>
+                  )}
+                </>
               )}
             </div>
           )}

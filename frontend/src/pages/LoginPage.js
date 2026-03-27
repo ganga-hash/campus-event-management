@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { login } from '../services/api';
@@ -10,8 +10,12 @@ const LoginPage = () => {
   const [form, setForm] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { loginUser } = useAuth();
+  const { user, loginUser } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user) navigate(user.role === 'admin' ? '/admin' : '/dashboard');
+  }, [user, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault(); setError(''); setLoading(true);
