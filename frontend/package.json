@@ -13,8 +13,8 @@
     "recharts": "^2.10.1"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
+    "start": "concurrently \"tailwindcss -i ./src/index.css -o ./src/output.css --watch\" \"react-scripts start\"",
+    "build": "tailwindcss -i ./src/index.css -o ./src/output.css && react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
@@ -34,6 +34,7 @@
   "devDependencies": {
     "@craco/craco": "^7.1.0",
     "autoprefixer": "^10.4.27",
+    "concurrently": "^9.2.1",
     "postcss": "^8.5.8",
     "tailwindcss": "^3.4.19"
   }
