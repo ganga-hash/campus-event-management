@@ -342,65 +342,46 @@ Defined in views.sql.
 
 ### Event_Report
 
-Purpose:
-- event-level reporting with participant count
+**Purpose**: Event-level reporting with participant count.
 
-Includes:
-- event identity and metadata
-- category name
-- total confirmed participants
-- status and prize_pool
+**Tables & Joins**:
+- **Base Table**: `Event e`
+- **LEFT JOIN** `Category c`: `ON e.category_id = c.category_id` (To fetch the category name, allowing events without a category to still appear).
+- **LEFT JOIN** `Registration r`: `ON e.event_id = r.event_id AND r.status = 'confirmed'` (To count only confirmed participants, allowing events with no participants).
 
-Join/group pattern:
-- Event left join Category
-- Event left join Registration (confirmed only)
-- grouped by event attributes
+**Group By**: Event identity columns.
 
 ### Volunteer_Report
 
-Purpose:
-- volunteer summary per person
+**Purpose**: Volunteer summary per person, including their hours worked and events assigned.
 
-Includes:
-- volunteer identity via Student profile
-- total events assigned
-- sum of worked hours
-- volunteer status
+**Tables & Joins**:
+- **Base Table**: `Volunteer v`
+- **INNER JOIN** `Student s`: `ON v.student_id = s.student_id` (To fetch the volunteer's name, email, and department. Inner join because every volunteer must have a student profile).
+- **LEFT JOIN** `Assignment a`: `ON v.volunteer_id = a.volunteer_id` (To calculate the total events and sum of hours worked, allowing volunteers with zero assignments to still be listed).
 
-Join/group pattern:
-- Volunteer join Student
-- Volunteer left join Assignment
-- grouped by volunteer and student profile fields
+**Group By**: Volunteer identity columns.
 
 ### Student_Registration_Report
 
-Purpose:
-- student participation summary
+**Purpose**: Student participation summary showing total events registered for.
 
-Includes:
-- student profile fields
-- total confirmed registrations
-- comma-separated registered event names
+**Tables & Joins**:
+- **Base Table**: `Student s` (Filtered by `s.role = 'student'`)
+- **LEFT JOIN** `Registration r`: `ON s.student_id = r.student_id AND r.status = 'confirmed'` (To find all confirmed registrations, allowing students with no registrations to appear).
+- **LEFT JOIN** `Event e`: `ON r.event_id = e.event_id` (To fetch the names of the registered events for the `GROUP_CONCAT` list).
 
-Join/group pattern:
-- Student left join Registration (confirmed only)
-- Registration left join Event
-- filter role = student
-- grouped by student fields
+**Group By**: Student identity columns.
 
 ### Sponsor_Event_Summary
 
-Purpose:
-- sponsor contribution overview
+**Purpose**: Sponsor contribution overview summarizing total events sponsored and cash contributed.
 
-Includes:
-- sponsor identity and tier
-- number of sponsored events
-- total contribution amount
+**Tables & Joins**:
+- **Base Table**: `Sponsor sp`
+- **LEFT JOIN** `Event_Sponsor es`: `ON sp.sponsor_id = es.sponsor_id` (To count the events sponsored and sum the `sponsorship_amount`. Left join ensures sponsors who haven't funded an event yet are still tracked).
 
-Join/group pattern:
-- Sponsor left join Event_Sponsor
-- grouped by sponsor fields
+**Group By**: Sponsor identity columns.
 
 ## Seed Data Notes
 

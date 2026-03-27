@@ -37,6 +37,7 @@ export const getAllVolunteers = () => API.get('/volunteers');
 export const getAllAssignments = () => API.get('/volunteers/assignments/all');
 export const getSponsors = () => API.get('/sponsors');
 export const addSponsor = d => API.post('/sponsors', d);
+export const linkSponsorToEvent = d => API.post('/sponsors/link', d);
 export const getDashboardStats = () => API.get('/analytics/stats');
 export const getRegistrationsPerEvent = () => API.get('/analytics/registrations-per-event');
 export const getVolunteerDistribution = () => API.get('/analytics/volunteer-distribution');

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { LayoutDashboard, CalendarDays, Users, Pencil, Trash2, Plus, CheckCircle, XCircle } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, Users, Pencil, Trash2, Plus, CheckCircle, XCircle, DollarSign, Link as LinkIcon } from 'lucide-react';
 import { 
   getEvents, createEvent, updateEvent, deleteEvent,
   getAllRegistrations, adminUpdateRegistrationStatus, adminDeleteRegistration,
-  getAllAssignments, adminUpdateAssignmentStatus, adminDeleteAssignment
+  getAllAssignments, adminUpdateAssignmentStatus, adminDeleteAssignment,
+  getSponsors, addSponsor, linkSponsorToEvent
 } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import SkeletonRow from '../components/ui/SkeletonRow';
@@ -32,10 +33,16 @@ const AdminDashboard = () => {
   const [events, setEvents] = useState([]);
   const [registrations, setRegistrations] = useState([]);
   const [assignments, setAssignments] = useState([]);
+  const [sponsors, setSponsors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteModal, setDeleteModal] = useState({ open: false, id: null, title: '', type: '' });
+  
+  const [sponsorModal, setSponsorModal] = useState(false);
+  const [sponsorForm, setSponsorForm] = useState({ name: '', contact_email: '', contact_phone: '', tier: 'silver', website: '', logo_url: '' });
+  const [linkModal, setLinkModal] = useState({ open: false, event_id: null, eventName: '' });
+  const [linkForm, setLinkForm] = useState({ sponsor_id: '', sponsorship_amount: '' });
   
   const initialForm = { name: '', description: '', date: '', time: '', venue: '', category_name: 'General', event_type: 'open', max_participants: 100, prize_pool: '', status: 'upcoming' };
   const [form, setForm] = useState(initialForm);
@@ -46,12 +53,13 @@ const AdminDashboard = () => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [evRes, regRes, volRes] = await Promise.all([
-        getEvents(), getAllRegistrations(), getAllAssignments()
+      const [evRes, regRes, volRes, spRes] = await Promise.all([
+        getEvents(), getAllRegistrations(), getAllAssignments(), getSponsors()
       ]);
       setEvents(evRes.data);
       setRegistrations(regRes.data);
       setAssignments(volRes.data);
+      setSponsors(spRes.data);
     } catch (err) {
       showToast('error', 'Failed to load data');
     } finally {
@@ -124,6 +132,28 @@ const AdminDashboard = () => {
     } catch (err) { showToast('error', 'Update failed'); }
   };
 
+  const handleSponsorSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await addSponsor(sponsorForm);
+      showToast('success', 'Sponsor added successfully');
+      setSponsorModal(false);
+      setSponsorForm({ name: '', contact_email: '', contact_phone: '', tier: 'silver', website: '', logo_url: '' });
+      loadData();
+    } catch (err) { showToast('error', 'Failed to add sponsor'); }
+  };
+
+  const handleLinkSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await linkSponsorToEvent({ event_id: linkModal.event_id, sponsor_id: linkForm.sponsor_id, sponsorship_amount: linkForm.sponsorship_amount });
+      showToast('success', 'Sponsor linked to event');
+      setLinkModal({ open: false, event_id: null, eventName: '' });
+      setLinkForm({ sponsor_id: '', sponsorship_amount: '' });
+      loadData();
+    } catch (err) { showToast('error', 'Failed to link sponsor'); }
+  };
+
   const metrics = {
     totalEvents: events.length,
     activeEvents: events.filter(e => e.status !== 'cancelled' && e.status !== 'completed').length,
@@ -159,7 +189,8 @@ const AdminDashboard = () => {
           {[
             { id: 'events', label: 'Dashboard & Events', icon: LayoutDashboard },
             { id: 'registrations', label: 'Registrations', icon: Users },
-            { id: 'volunteers', label: 'Volunteers', icon: CalendarDays }
+            { id: 'volunteers', label: 'Volunteers', icon: CalendarDays },
+            { id: 'sponsors', label: 'Sponsors', icon: DollarSign }
           ].map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors font-semibold text-sm ${activeTab === tab.id ? 'bg-indigo-50 text-indigo-800' : 'text-stone-600 hover:bg-stone-50'}`}>
               <tab.icon className={`w-5 h-5 ${activeTab === tab.id ? 'text-indigo-600' : 'text-stone-400'}`} /> {tab.label}
@@ -171,7 +202,7 @@ const AdminDashboard = () => {
       {/* Mobile Tabs */}
       <div className="md:hidden bg-white border-b border-stone-200 sticky top-16 z-30 px-4 py-3 overflow-x-auto scrollbar-none">
         <div className="flex gap-2">
-          {['events', 'registrations', 'volunteers'].map(t => (
+          {['events', 'registrations', 'volunteers', 'sponsors'].map(t => (
             <button key={t} onClick={() => setActiveTab(t)} className={`flex-shrink-0 px-4 py-2 rounded-xl text-sm font-semibold transition-colors ${activeTab === t ? 'bg-indigo-50 text-indigo-800 border border-indigo-100' : 'bg-stone-50 text-stone-600 border border-stone-200'}`}>
               {t.charAt(0).toUpperCase() + t.slice(1)}
             </button>
@@ -270,6 +301,7 @@ const AdminDashboard = () => {
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center justify-end gap-2">
+                            <button onClick={() => setLinkModal({ open: true, event_id: event.event_id, eventName: event.name })} className="p-2 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors border max-sm:hidden" title="Link Sponsor"><LinkIcon className="w-4 h-4" /></button>
                             <button onClick={() => handleEditClick(event)} className="p-2 text-stone-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Edit"><Pencil className="w-4 h-4" /></button>
                             <button onClick={() => setDeleteModal({ open: true, id: event.event_id, title: event.name, type: 'event' })} className="p-2 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Delete"><Trash2 className="w-4 h-4" /></button>
                           </div>
@@ -403,6 +435,55 @@ const AdminDashboard = () => {
             </div>
           </motion.div>
         )}
+
+        {/* Sponsors Tab */}
+        {activeTab === 'sponsors' && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-display font-bold text-stone-900">Manage Sponsors</h1>
+                <p className="text-stone-500 font-medium mt-1">Add sponsors and track their contributions.</p>
+              </div>
+              <Button onClick={() => setSponsorModal(true)} className="shrink-0 gap-2 font-medium bg-emerald-700 hover:bg-emerald-800 shadow-glow-emerald">
+                <Plus className="w-4 h-4" /> Add Sponsor
+              </Button>
+            </div>
+            
+            <div className="bg-white rounded-3xl border border-stone-200 shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-white border-b border-stone-100 text-xs uppercase tracking-wider text-stone-400">
+                      <th className="px-6 py-4 font-semibold">Sponsor Name</th>
+                      <th className="px-6 py-4 font-semibold">Tier</th>
+                      <th className="px-6 py-4 font-semibold text-center">Events Sponsored</th>
+                      <th className="px-6 py-4 font-semibold text-right">Total Contribution</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100">
+                    {loading ? (
+                      [...Array(3)].map((_, i) => <SkeletonRow key={i} columns={4} />)
+                    ) : sponsors.map(s => (
+                      <tr key={s.sponsor_id} className="hover:bg-stone-50 transition-colors">
+                        <td className="px-6 py-4 font-semibold text-stone-800">{s.sponsor_name}</td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider border ${
+                            s.tier === 'platinum' ? 'bg-slate-100 text-slate-700 border-slate-200' :
+                            s.tier === 'gold' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                            s.tier === 'silver' ? 'bg-stone-100 text-stone-500 border-stone-200' :
+                            'bg-orange-50 text-orange-700 border-orange-200'
+                          }`}>{s.tier}</span>
+                        </td>
+                        <td className="px-6 py-4 text-center font-medium text-stone-600">{s.events_sponsored || 0}</td>
+                        <td className="px-6 py-4 text-right font-medium text-emerald-600">₹{s.total_contribution || 0}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </motion.div>
+        )}
       </div>
 
       {/* Delete Confirmation Modal */}
@@ -482,6 +563,63 @@ const AdminDashboard = () => {
           </div>
         </form>
       </Modal>
+
+      {/* Sponsor Modals */}
+      <Modal 
+        isOpen={sponsorModal} onClose={() => setSponsorModal(false)}
+        title="Add New Sponsor" icon={DollarSign}
+        actions={
+          <div className="w-full flex justify-end gap-3">
+            <Button variant="ghost" onClick={() => setSponsorModal(false)}>Cancel</Button>
+            <Button className="bg-emerald-700 shadow-glow-emerald hover:bg-emerald-800" onClick={handleSponsorSubmit}>Save Sponsor</Button>
+          </div>
+        }
+      >
+        <form onSubmit={handleSponsorSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-semibold text-stone-700 mb-1.5">Sponsor Name</label>
+            <input type="text" required value={sponsorForm.name} onChange={e => setSponsorForm({...sponsorForm, name: e.target.value})} className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 font-medium" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-stone-700 mb-1.5">Tier</label>
+              <select value={sponsorForm.tier} onChange={e => setSponsorForm({...sponsorForm, tier: e.target.value})} className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 font-medium text-stone-700">
+                {['platinum', 'gold', 'silver', 'bronze'].map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-stone-700 mb-1.5">Website (optional)</label>
+              <input type="url" value={sponsorForm.website} onChange={e => setSponsorForm({...sponsorForm, website: e.target.value})} className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600/20 focus:border-emerald-600 font-medium placeholder:text-stone-400" placeholder="https://" />
+            </div>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal 
+        isOpen={linkModal.open} onClose={() => setLinkModal({ open: false, event_id: null, eventName: '' })}
+        title={`Link Sponsor to ${linkModal.eventName}`} icon={LinkIcon}
+        actions={
+          <div className="w-full flex justify-end gap-3">
+            <Button variant="ghost" onClick={() => setLinkModal({ open: false, event_id: null, eventName: '' })}>Cancel</Button>
+            <Button className="bg-indigo-700 shadow-glow-indigo hover:bg-indigo-800" onClick={handleLinkSubmit}>Link Sponsor</Button>
+          </div>
+        }
+      >
+        <form onSubmit={handleLinkSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-semibold text-stone-700 mb-1.5">Select Sponsor</label>
+            <select required value={linkForm.sponsor_id} onChange={e => setLinkForm({...linkForm, sponsor_id: e.target.value})} className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 font-medium text-stone-700">
+              <option value="" disabled>Choose a Sponsor...</option>
+              {sponsors.map(s => <option key={s.sponsor_id} value={s.sponsor_id}>{s.sponsor_name} ({s.tier})</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-stone-700 mb-1.5">Sponsorship Amount (₹)</label>
+            <input type="number" min="0" required value={linkForm.sponsorship_amount} onChange={e => setLinkForm({...linkForm, sponsorship_amount: e.target.value})} className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600/20 focus:border-indigo-600 font-medium" placeholder="e.g. 15000" />
+          </div>
+        </form>
+      </Modal>
+
     </div>
   );
 };

@@ -165,6 +165,32 @@ const EventDetail = () => {
           <InfoCard icon={Info} label="Status" theme={{bg: statusTheme.bg, text: statusTheme.text}} value={statusTheme.label} />
         </div>
 
+        {/* Official Sponsors */}
+        {event.sponsors && event.sponsors.length > 0 && (
+          <div className="mb-8 p-6 bg-white rounded-3xl border border-stone-200 shadow-sm">
+            <h3 className="font-display font-semibold text-stone-800 mb-4 flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-amber-500" />
+              Official Sponsors
+            </h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              {event.sponsors.map((s, idx) => (
+                <div key={idx} className="bg-stone-50 rounded-2xl border border-stone-100 p-4 text-center hover:bg-stone-100 transition-colors">
+                  <div className={`w-12 h-12 mx-auto rounded-full flex items-center justify-center mb-3 font-bold text-lg shadow-sm border border-white ${
+                    s.tier === 'platinum' ? 'bg-slate-200 text-slate-700' :
+                    s.tier === 'gold' ? 'bg-amber-100 text-amber-700' :
+                    s.tier === 'silver' ? 'bg-stone-200 text-stone-600' :
+                    'bg-orange-100 text-orange-700'
+                  }`}>
+                    {s.logo_url ? <img src={s.logo_url} alt={s.name} className="w-full h-full object-cover rounded-full" /> : s.name.charAt(0)}
+                  </div>
+                  <h4 className="font-bold text-stone-800 text-sm truncate">{s.name}</h4>
+                  <p className="text-[10px] uppercase font-bold tracking-wider mt-1 text-stone-400">{s.tier}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Capacity Bar */}
         <div className="bg-white rounded-3xl border border-stone-200 p-6 sm:p-8 mb-8 shadow-sm">
           <div className="flex justify-between items-center mb-4">

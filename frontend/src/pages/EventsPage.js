@@ -186,8 +186,8 @@ const EventsPage = () => {
                 <EventCard 
                   key={event.event_id} 
                   event={event} 
-                  onRegister={user ? handleRegister : null} 
-                  onVolunteer={user ? handleVolunteer : null}
+                  onRegister={user && user.role !== 'admin' ? handleRegister : null} 
+                  onVolunteer={user && user.role !== 'admin' ? handleVolunteer : null}
                   isRegistered={!!userRegs[event.event_id]}
                   isVolunteer={!!userVols[event.event_id]}
                 />
