@@ -166,7 +166,7 @@ const AdminDashboard = () => {
       setLinkModal({ open: false, event_id: null, eventName: '' });
       setLinkForm({ sponsor_id: '', sponsorship_amount: '' });
       loadData();
-    } catch (err) { showToast('error', 'Failed to link sponsor'); }
+    } catch (err) { showToast('error', err.response?.data?.message || 'Failed to link sponsor'); }
   };
 
   const handleContributionSubmit = async (e) => {
@@ -333,7 +333,14 @@ const AdminDashboard = () => {
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center justify-end gap-2">
-                            <button onClick={() => setLinkModal({ open: true, event_id: event.event_id, eventName: event.name })} className="p-2 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors border max-sm:hidden" title="Link Sponsor"><LinkIcon className="w-4 h-4" /></button>
+                            <button
+                              onClick={() => {
+                                setLinkForm({ sponsor_id: '', sponsorship_amount: '' });
+                                setLinkModal({ open: true, event_id: event.event_id, eventName: event.name });
+                              }}
+                              className="p-2 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors border max-sm:hidden"
+                              title="Link Sponsor"
+                            ><LinkIcon className="w-4 h-4" /></button>
                             <button onClick={() => handleEditClick(event)} className="p-2 text-stone-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Edit"><Pencil className="w-4 h-4" /></button>
                             <button onClick={() => { setSponsorDeleteAcknowledged(false); setDeleteModal({ open: true, id: event.event_id, title: event.name, type: 'event', hasContributions: false }); }} className="p-2 text-stone-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Delete"><Trash2 className="w-4 h-4" /></button>
                           </div>

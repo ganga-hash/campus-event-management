@@ -25,14 +25,25 @@ const getAllSponsors = async (req, res) => {
 
 const linkSponsorToEvent = async (req, res) => {
   const { event_id, sponsor_id, sponsorship_amount } = req.body;
+  const amount = Number(sponsorship_amount);
+
+  if (!event_id || !sponsor_id || Number.isNaN(amount) || amount <= 0) {
+    return res.status(400).json({ message: 'Valid event_id, sponsor_id, and sponsorship_amount are required' });
+  }
+
   try {
     await pool.query(
-      'INSERT INTO Event_Sponsor (event_id, sponsor_id, sponsorship_amount) VALUES (?,?,?)',
-      [event_id, sponsor_id, sponsorship_amount]
+      `INSERT INTO Event_Sponsor (event_id, sponsor_id, sponsorship_amount)
+       VALUES (?,?,?)
+       ON DUPLICATE KEY UPDATE sponsorship_amount = COALESCE(sponsorship_amount, 0) + VALUES(sponsorship_amount)`,
+      [event_id, sponsor_id, amount]
     );
-    res.status(201).json({ message: 'Sponsor linked to event' });
+    res.status(201).json({ message: 'Sponsor linked to event successfully' });
   } catch (err) {
-    res.status(500).json({ message: 'Server error' });
+    if (err.code === 'ER_NO_REFERENCED_ROW_2') {
+      return res.status(400).json({ message: 'Invalid event or sponsor selected' });
+    }
+    res.status(500).json({ message: 'Failed to link sponsor to event' });
   }
 };
 
